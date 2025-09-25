@@ -2,17 +2,39 @@
 
 ## Project Background
 
-[Please add project background]
+The Becker Friedman Institute for Economics (BFI) serves as a hub for cutting-edge
+analysis and research across the entire University of Chicago economics community,
+uniting researchers from the Booth School of Business, the Kenneth C. Griffin Department
+of Economics, the Harris School of Public Policy, and the Law School in an unparalleled
+effort to uncover new ways of thinking about economics. Inspired by Nobel Laureates Gary
+Becker and Milton Friedman, BFI works with the Chicago Economics community to turn
+evidence-based research into real-world impact by translating rigorous research into
+accessible and relevant formats and proactively disseminating it to key decision-makers
+around the world.
+
+This project extends the recent BFI working paper “The Rise of Healthcare Jobs” by
+developing an interactive Data Studio dashboard that enables users to explore healthcare
+employment across 130 Metropolitan Statistical Areas from 1980–2022. Using a dataset
+covering roughly 75% of the U.S. population with 26 socioeconomic variables—including
+healthcare and manufacturing employment shares, education levels, earnings,
+demographics, and Medicare eligibility—the tool will allow users to examine regional
+healthcare job growth in relation to manufacturing decline and other economic indicators.
+Built as a web-based interactive visualization platform, the dashboard will provide
+journalists, researchers, and policymakers with the ability to filter by region, compare
+metropolitan trends, and analyze correlations between healthcare employment and
+broader socioeconomic shifts, making complex labor market dynamics more accessible for
+research and policy analysis.
 
 ## Project Goals
 
-[Please add project goals]
+Students will develop an interactive web-based Data Studio/dashboard that allows users to explore healthcare employment patterns by region and demographic characteristics.
 
 ## First Week
 - Complete the quick start below, making sure that you can find the file `sample_output.csv`.
-[Please add first week activities]
-
-### Docker
+- Download and read [the paper](https://bfi.uchicago.edu/wp-content/uploads/2025/03/BFI_WP_2025-42.pdf)
+- Do some simple exploratory visualization of [this data](data/the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv)
+- Read the [data dictionary](docs/DataDictionary.pdf)
+- Familiarize yourself with the [Data Studio](https://bfidatastudio.org/)
 
 ## Quick Start
 
