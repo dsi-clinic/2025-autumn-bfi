@@ -61,10 +61,10 @@ variable_name_map = {
 
 
 @st.cache_data
-def load_geojson(file_path: str = "data/combined_US_regions.geojson") -> dict:
+def load_geojson(file_path: str = "data/combined_US_regions_auto.geojson") -> dict:
     """Load combined GeoJSON for US regions. Cached for faster performance.
 
-    file_path: Path to geojson file.
+    file_path: Path to geojson file. Default is 'data/combined_US_regions_auto.geojson', generated from dataprep.py.
     """
     with Path.open(file_path) as f:
         return json.load(f)
@@ -74,60 +74,82 @@ combined_geo = load_geojson()
 
 # --- Streamlit setup ---
 st.set_page_config(layout="wide")
+if st.button("Go back Home"):
+    st.switch_page("Homepage.py")
 st.title("Metropolitan Area and Statewide Healthcare Data Explorer")
 indicator = st.selectbox(
     "Select variable",
     options=value_cols,
     format_func=lambda x: variable_name_map.get(x, x),
 )
+pretty = variable_name_map.get(
+    indicator, indicator
+)  # Beautifies variable name for display
 df_sel = df_long[df_long["indicator"] == indicator].copy()
-df_sel["metro13"] = df_sel["metro13"].astype(str)
+df_sel["metro13"] = df_sel["metro13"].astype(str)  # ensure string type for matching
+df_sel[pretty] = df_sel["value"]
 
-# --- Session state for clicked MSAs ---
-if "selected_metros" not in st.session_state:
-    st.session_state.selected_metros = []
+# # --- Session state for clicked MSAs ---
+# if "selected_metros" not in st.session_state:
+#     st.session_state.selected_metros = []
 
 # --- Base map figure (static opacity) ---
 color_min = df_sel["value"].min()
 color_max = df_sel["value"].max()
 
 # --- Create the MapLibre choropleth
-fig = px.choropleth_map(
+fig_map = px.choropleth_map(
     df_sel,
     geojson=combined_geo,
     locations="metro13",
     featureidkey="properties.region_id",  # adjust to your geojson property
-    color="value",
+    color=pretty,
     color_continuous_scale="orrd",
     hover_name="metro_title",
-    hover_data={"value": True, "metro13": False},
+    hover_data={pretty: ":.2f", "metro13": False},
     map_style="open-street-map",  # built-in style under MapLibre
     zoom=3,
     center={"lat": 37.8, "lon": -96},
     opacity=0.75,
-    labels={"value": indicator},
 )
 
-fig.update_layout(margin={"r": 0, "t": 30, "l": 0, "b": 0}, height=800)
+fig_map.update_layout(
+    margin={"r": 0, "t": 30, "l": 0, "b": 0},
+    height=800,
+    coloraxis_colorbar={
+        "orientation": "h",
+        "yanchor": "top",
+        "y": 0.15,
+        "xanchor": "center",
+        "x": 0.5,
+        "len": 0.6,
+        "bgcolor": "rgba(10, 10, 10, 0.85)",
+        "thickness": 15,
+        "title": pretty,
+        "title_side": "top",
+    },
+)
 
-st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True})
+st.plotly_chart(fig_map, use_container_width=True, config={"scrollZoom": True})
 
 # --- Filter bar chart by selected MSAs ---
-if st.session_state.selected_metros:
-    df_bar_sorted = df_sel[
-        df_sel["metro13"].isin(st.session_state.selected_metros)
-    ].sort_values("value", ascending=False)
-else:
-    df_bar_sorted = df_sel.sort_values("value", ascending=False)
+df_bar_sorted = df_sel.sort_values("value", ascending=False)
 
 fig_bar = px.bar(
     df_bar_sorted,
     x="metro_title",
-    y="value",
-    color="value",
+    y=pretty,
+    title=f"{pretty} by Metropolitan Area<br><i>Drag to select</i>",
+    color=pretty,
     color_continuous_scale="orrd",
-    labels={"value": indicator, "metro_title": "Metro Area"},
+    labels={"value": pretty, "metro_title": "Metropolitan Area"},
 )
+fig_bar.update_layout(
+    coloraxis_showscale=False,
+    yaxis_title="Value",
+)
+
+fig_bar.update_traces(hovertemplate="%{x}<br>Value: %{y:.2f}<extra></extra>")
 
 st.plotly_chart(fig_bar, use_container_width=True)
 
