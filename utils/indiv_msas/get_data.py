@@ -46,8 +46,6 @@ def get_2022_pop(url: str = RAW_2022_POP_DATA_URL) -> None:
 
     From US Census Bureau.
     """
-    url = "https://www2.census.gov/programs-surveys/popest/datasets/2020-2023/metro/asrh/cbsa-est2023-alldata-char.csv"
-
     r = requests.get(url, timeout=10)
     r.raise_for_status()
 
