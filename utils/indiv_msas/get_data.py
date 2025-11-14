@@ -4,25 +4,35 @@ Includes one function for each supplementary csv
 """
 
 import io
+import os
 import zipfile
 from pathlib import Path
 
 import requests
 
-SAVE_PATH = Path("data/")
+DATA_DIR = Path(os.environ["DATA_DIR"])
+
+# Make raw data urls hyper-parameters
+RAW_1980_POP_DATA_URL = (
+    "https://www2.census.gov/programs-surveys/popest/datasets/"
+    "1980-1990/counties/asrh/pe-02.csv"
+)
+
+RAW_2022_POP_DATA_URL = (
+    "https://www2.census.gov/programs-surveys/popest/datasets/"
+    "2020-2023/metro/asrh/cbsa-est2023-alldata-char.csv"
+)
 
 
-def get_1980_pop() -> None:
+def get_1980_pop(url: str = RAW_1980_POP_DATA_URL) -> None:
     """Gets csv containing 1980 population data.
 
     From US Census Bureau.
     """
-    url = "https://www2.census.gov/programs-surveys/popest/datasets/1980-1990/counties/asrh/pe-02.csv"
-
     r = requests.get(url, timeout=10)
     r.raise_for_status()
 
-    output_file = SAVE_PATH / "pop_1980.csv"
+    output_file = DATA_DIR / "pop_1980.csv"
 
     with output_file.open("wb") as f:
         f.write(r.content)
@@ -31,7 +41,7 @@ def get_1980_pop() -> None:
     return
 
 
-def get_2022_pop() -> None:
+def get_2022_pop(url: str = RAW_2022_POP_DATA_URL) -> None:
     """Gets csv containing 2022 population data.
 
     From US Census Bureau.
@@ -41,7 +51,7 @@ def get_2022_pop() -> None:
     r = requests.get(url, timeout=10)
     r.raise_for_status()
 
-    output_file = SAVE_PATH / "pop_2022.csv"
+    output_file = DATA_DIR / "pop_2022.csv"
 
     with output_file.open("wb") as f:
         f.write(r.content)
@@ -60,7 +70,7 @@ def get_1980_labor() -> None:
     r = requests.get(url, timeout=10)
     r.raise_for_status()
 
-    output_file = SAVE_PATH / "labor_1980.csv"
+    output_file = DATA_DIR / "labor_1980.csv"
 
     with zipfile.ZipFile(io.BytesIO(r.content)) as z:
         with (
@@ -85,7 +95,7 @@ def get_2022_labor() -> None:
     r = requests.get(url, timeout=10)
     r.raise_for_status()
 
-    output_file = SAVE_PATH / "labor_2022.csv"
+    output_file = DATA_DIR / "labor_2022.csv"
 
     with zipfile.ZipFile(io.BytesIO(r.content)) as z:
         with (

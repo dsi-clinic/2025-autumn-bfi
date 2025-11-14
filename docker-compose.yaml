@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - .:/project/src
+      - ${DATA_DIR}:/project/data
     environment:
       REPO_ROOT: /project/src
       DATA_DIR: /project/data
