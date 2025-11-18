@@ -13,6 +13,21 @@ RUN /usr/local/bin/uv venv
 ENV VIRTUAL_ENV=/project/.venv
 ENV PATH="/project/.venv/bin:$PATH"
 ENV PYTHONPATH=/project/src
+
+COPY gt_utilities/ src/
+COPY data/ data/
+COPY . .
+
 RUN uv sync
 
+# Copy full project into container
+# COPY . /project
+
+# Run Data Preprocessing
+# RUN python dataprep.py
+
+# Expose Streamlit Port
+# EXPOSE 8501
+
+# CMD ["streamlit", "run", "Homepage.py", "--server.port=8501", "--server.address=0.0.0.0"]
 CMD ["/bin/bash"]
