@@ -32,8 +32,7 @@ UBLA_LABOR_DATA_ZIP_URLS_AND_RAW_PATHS = {
 }
 
 NBER_COUNTY_CBSA_CROSSWALK_URL = (
-    "https://data.nber.org/cbsa-msa-fips-ssa-county-crosswalk/"
-    "2013/cbsatocountycrosswalk.csv"
+    "https://data.nber.org/cbsa-csa-fips-county-crosswalk/cbsa2fipsxw.csv"
 )
 
 LOGGER = logging.getLogger(__name__)
