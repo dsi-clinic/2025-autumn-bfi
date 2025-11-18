@@ -9,7 +9,6 @@ import os
 import zipfile
 from pathlib import Path
 
-import pandas as pd
 import requests
 from requests.exceptions import ReadTimeout, RequestException
 
@@ -33,8 +32,8 @@ UBLA_LABOR_DATA_ZIP_URLS_AND_RAW_PATHS = {
 }
 
 NBER_COUNTY_CBSA_CROSSWALK_URL = (
-    "https://www.cms.gov/Medicare/Medicare-Fee-for-Service-Payment/"
-    "AcuteInpatientPPS/Downloads/FY_13_FR_County_to_CBSA_Xwalk.zip"
+    "https://data.nber.org/cbsa-msa-fips-ssa-county-crosswalk/"
+    "2013/cbsatocountycrosswalk.csv"
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -130,59 +129,40 @@ def get_ubls_labor(
 
 
 def get_uber_county_cbsa_crosswalk(
-    zip_url: str = NBER_COUNTY_CBSA_CROSSWALK_URL,
+    url: str = NBER_COUNTY_CBSA_CROSSWALK_URL,
 ) -> None:
-    """Unzips folder containing 2013 cbsa to county crosswalk
+    """Saves csv containing 2013 cbsa to county crosswalk
 
     From National Bureau of Economic Research at:
-    https://data.nber.org/cbsa-msa-fips-ssa-county-crosswalk/
-    2013/desc/cbsatocountycrosswalk2013/desc.txt
+    https://data.nber.org/cbsa-msa-fips-ssa-county-crosswalk/2013/
     """
-    # get zipfile containing data
+    # get data from url
     try:
-        r = requests.get(zip_url, timeout=30)
+        r = requests.get(url, timeout=30)
         r.raise_for_status()
-    except RequestException as exc:
-        LOGGER.error(
-            "Failed to download 2013 cbsa to county crosswalk zipfile from %s", zip_url
-        )
+
+    except ReadTimeout as exc:
+        LOGGER.error(f"Timed out while downloading 2013 crosswalk data from {url}")
         LOGGER.exception(exc)
         return
 
-    # unzip and save raw data
+    except RequestException as exc:
+        LOGGER.error("Failed to download 2013 crosswalk data from", url)
+        LOGGER.exception(exc)
+        return
+
+    # saves raw data
     output_file = RAW_DATA_DIR / "cbsatocountycrosswalk.csv"
 
     try:
-        with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-            txt_name = [f for f in z.namelist() if f.endswith(".txt")][0]
-            LOGGER.info("Found Text file inside ZIP: %s", txt_name)
-            txt_bytes = z.read(txt_name)
-
-    except zipfile.BadZipFile:
-        LOGGER.error("The downloaded file is not a valid ZIP archive.")
-        return
-
-    except IndexError:
-        LOGGER.error("No .xls file found inside ZIP archive.")
-        return
-
-    except KeyError as exc:
-        LOGGER.error("Expected file was NOT found inside the ZIP: %s", exc)
-        return
-
-    except Exception as exc:
-        LOGGER.error("Unexpected error processing ZIP")
+        with output_file.open("wb") as f:
+            f.write(r.content)
+    except OSError as exc:
+        LOGGER.error("Failed to write output file: %s", output_file)
         LOGGER.exception(exc)
         return
 
-    try:
-        crosswalk_df = pd.read_csv(io.StringIO(txt_bytes.decode("latin-1")), sep="\t")
-        crosswalk_df.to_csv(output_file, index=False)
-        LOGGER.info("Saved CSV to %s", output_file.resolve())
-
-    except Exception as exc:
-        LOGGER.error("Failed to write CSV output file")
-        LOGGER.exception(exc)
+    LOGGER.info("Saved cbsatocountycrosswalk.csv to", output_file.resolve())
     return
 
 
