@@ -5,8 +5,9 @@ Handles 1980 vs 2022 population distribution analysis and visualization
 
 import pandas as pd
 import streamlit as st
-from charts import create_demographics_comparison_chart
-from config import DEMOGRAPHIC_AGG_COLS, DEMOGRAPHIC_CATEGORIES
+
+from gt_utilities.charts import create_demographics_comparison_chart
+from gt_utilities.config import DEMOGRAPHIC_AGG_COLS, DEMOGRAPHIC_CATEGORIES
 
 
 def prepare_1980_tables(merged_pop_1980: pd.DataFrame) -> dict[str, pd.DataFrame]:

@@ -29,9 +29,28 @@ st.markdown(config.CUSTOM_CSS, unsafe_allow_html=True)
 # -------------------------
 # Header Section
 # -------------------------
-st.markdown("<h1>Interactive Maps of MSA's</h1>", unsafe_allow_html=True)
 st.markdown(
-    "<p style='text-align:center; color: white;'>Understanding the socioeconomic and demographic factors behind healthcare employment growth across U.S. MSAs (1980–2022).</p>",
+    "<p style='text-align:left; color: white;'>Over the past four decades, "
+    "healthcare has quietly become one of the most important sources of employment "
+    "in the United States, expanding steadily across nearly every metropolitan area"
+    " regardless of economic cycles. The data in this dashboard illustrate this "
+    "transformation: some regions, such as Little Rock, Cleveland, Winston-Salem, "
+    "and New Haven, now rely on healthcare for more than 12 percent of their "
+    "employment, while many mid-sized metros have seen their healthcare employment"
+    " shares rise by 6 to 7 percentage points since 1980. Yet this growth has not "
+    "followed the common narrative that healthcare simply replaced manufacturing"
+    " jobs; across U.S. metros, declines in manufacturing bear little relationship"
+    " to how much healthcare grew. Instead, the patterns point to deeper structural"
+    " forces: population aging, the rise of chronic care, the expansion of hospital"
+    " systems, and the increasing role of midlevel practitioners. Additional relationships"
+    " in the data show that healthcare employment growth is only weakly related to"
+    " traditional economic indicators such as earnings growth, population increases,"
+    " or education levels, underscoring that healthcare’s expansion is driven more by"
+    " long-run demographic demand than by short-term economic performance. Together,"
+    " these insights highlight a central finding of the underlying research: healthcare"
+    " has become a stable, demographically driven anchor of local labor markets, one"
+    " that grows even when other sectors shrink, and understanding its trajectory"
+    " is essential for interpreting the economic future of U.S. regions.</p>",
     unsafe_allow_html=True,
 )
 
@@ -40,7 +59,6 @@ st.markdown(
 # -------------------------
 datasets = load_all_datasets(
     config.DATA_PATHS,
-    config.CLEANED_PATHS,
     config.MERGED_1980_PATHS,
     config.MIN_2022_PATHS,
     config.GDP_PATHS,

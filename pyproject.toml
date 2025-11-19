@@ -24,6 +24,8 @@ dependencies = [
   "vl-convert-python~=1.8.0",
   "matplotlib~=3.10.7",
   "scikit-learn~=1.7.2",
+  "path~=17.1.1",
+  "requests~=2.32.5",
 
 ]
 
