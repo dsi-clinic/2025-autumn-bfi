@@ -3,6 +3,8 @@
 Contains all color palettes, data paths, styling constants, and chart/demographic relationships
 """
 
+from gt_utilities import find_project_root
+
 # -------------------------
 # Color Palettes
 # -------------------------
@@ -23,15 +25,24 @@ COLOR_PALETTE: dict[str, str] = {
 # -------------------------
 # Data File Paths
 # -------------------------
-DATA_PATHS = ["../data/the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"]
+PROJECT_ROOT = find_project_root()
+DATA_DIR = PROJECT_ROOT / "data"
 
-CLEANED_PATHS = ["../data/Cleaned_data.csv"]
+DATA_PATHS = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
+CLEANED_PATHS = DATA_DIR / "Cleaned_data.csv"
+GDP_PATHS = DATA_DIR / "merged_healthcare_jobs_with_gdp.csv"
+MERGED_1980_PATHS = DATA_DIR / "merged_pop_1980.csv"
+MIN_2022_PATHS = DATA_DIR / "min_df_2022.csv"
 
-MERGED_1980_PATHS = ["~/Downloads/merged_pop_1980.csv"]
+# DATA_PATHS = ["../data/the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"]
 
-MIN_2022_PATHS = ["~/Downloads/min_df_2022.csv"]
+# CLEANED_PATHS = ["data/Cleaned_data.csv"]
 
-GDP_PATHS = ["../data/merged_healthcare_jobs_with_gdp.csv"]
+# MERGED_1980_PATHS = ["~/Downloads/merged_pop_1980.csv"]
+
+# MIN_2022_PATHS = ["~/Downloads/min_df_2022.csv"]
+
+# GDP_PATHS = ["data/merged_healthcare_jobs_with_gdp.csv"]
 
 # -------------------------
 # Chart Relationships

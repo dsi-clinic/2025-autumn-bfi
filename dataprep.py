@@ -1,18 +1,80 @@
-"""Data preprocessing script to download, extract, and convert shapefiles to GeoJSON format, and prepare combined GeoJSON for US metropolitan areas and states.
+"""Data preprocessing script (in three parts)
+
+Part 1: GeoJSON Shapefile Preparation
+
+This part of the script:
+1. Downloads, extracts, and converts shapefiles to GeoJSON format
+2. Prepares combined GeoJSON for US metropolitan areas and states.
 
 url sources: United States Census Bureau
 - CBSA shapefile: https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_cbsa_5m.zip
 - State shapefile: https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_state_5m.zip
+
+OUTPUT FILES:
+--------------
+  data/combined_US_regions_auto.geojson
+
+Part 2: MSA Healthcare + GDP Data Merger
+
+This part of the script:
+  1. Downloads Real GDP data (2018–2023) for all U.S. MSAs from the BEA API.
+  2. Calculates percent change from the preceding year.
+  3. Merges the GDP data with the healthcare employment dataset.
+  4. Saves both the raw GDP and merged datasets in the /data directory.
+
+OUTPUT FILES:
+--------------
+  data/msa_gdp_percent_change.csv
+  data/merged_healthcare_jobs_with_gdp.csv
+
+Part 3: Other Data Prep (Labour, Population, Crosswalks)
+
+This part of the script:
+  1. Downloads Real GDP data (2018–2023) for all U.S. MSAs from the BEA API.
+  2. Calculates percent change from the preceding year.
+  3. Merges the GDP data with the healthcare employment dataset.
+  4. Saves both the raw GDP and merged datasets in the /data directory.
+
+OUTPUT FILES:
+--------------
+  data/msa_gdp_percent_change.csv
+  data/merged_healthcare_jobs_with_gdp.csv
+
+DEPENDENCIES:
+-------------
+  pip install time io json zipfile pathlib pandas requests geopandas shutil pathlib
 """
 
 import io
 import json
+import shutil
+import sys
+import time
 import zipfile
 from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 import requests
+
+# ------------------------------------------------------
+# Part 1: GeoJSON Shapefile Preparation
+# ------------------------------------------------------
+print("\n" + "=" * 80)
+print(
+    "Welcome to the Data Preparation Package! Your data preprocessing will commence in 10 seconds."
+    "\n After processing, check the 'data' folder for the output files. You should see three files:"
+    "\n 1) 'combined_US_regions_auto.geojson' (combined GeoJSON for MSAs and states)"
+    "\n 2) 'merged_healthcare_jobs_with_gdp.csv' (merged healthcare + GDP dataset)"
+    "\n 3) 'msa_gdp_percent_change.csv' (BEA GDP percent change data)"
+)
+
+for i in range(80):
+    sys.stdout.write("\r{}>".format("=" * i))
+    sys.stdout.flush()
+    time.sleep(0.125)
+
+print("\n Downloading shapefiles...")
 
 url = "https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_cbsa_5m.zip"
 
@@ -21,12 +83,16 @@ z = zipfile.ZipFile(io.BytesIO(r.content))
 z.extractall("data/cb_2021_us_cbsa_5m")
 z.close()
 
+print("Downloaded and extracted CBSA shapefiles.")
+
 url2 = "https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_state_5m.zip"
 
 r2 = requests.get(url2, timeout=10)
 z2 = zipfile.ZipFile(io.BytesIO(r2.content))
 z2.extractall("data/cb_2021_us_state_5m")
 z2.close()
+
+print("Downloaded and extracted State shapefiles.")
 
 # Convert extracted shapefiles to GeoJSON
 
@@ -39,6 +105,8 @@ df_long = datadf.melt(
     var_name="indicator",
     value_name="value",
 )
+
+print("Processing shapefiles to GeoJSON format...")
 
 shp_dirs = {
     "cbsa": Path("data/cb_2021_us_cbsa_5m"),
@@ -87,6 +155,8 @@ for key, d in shp_dirs.items():
 gdf_states = gpd.read_file("data/2021_US_States_auto.geojson")
 gdf_msas = gpd.read_file("data/2021_US_CBSA_auto.geojson")
 
+print("Filtering, Clipping and Processing GeoJSON features...")
+
 # --- Filter MSAs to only those you have data for
 msa_ids_with_data = df_long["metro13"].astype(str).unique()
 gdf_msas_data = gdf_msas[gdf_msas["CBSAFP"].astype(str).isin(msa_ids_with_data)]
@@ -122,4 +192,196 @@ with output_path.open("w", encoding="utf-8") as f:
         f"Wrote {len(gdf_states_clipped) + len(gdf_msas_data)} features to {output_path}"
     )
 
-print("Shapefile preprocessing complete!")
+# Cleanup intermediate files
+
+print("Cleaning up intermediate files...")
+
+# FOLDERS TO DELETE
+folders_to_delete = [
+    Path("data/cb_2021_us_cbsa_5m"),
+    Path("data/cb_2021_us_state_5m"),
+]
+
+# FILES TO DELETE
+files_to_delete = [
+    Path("data/2021_US_CBSA_auto.geojson"),
+    Path("data/2021_US_States_auto.geojson"),
+    Path("data/2021_US_States_clipped_auto.geojson"),
+]
+
+# Delete folders
+for folder in folders_to_delete:
+    if folder.exists() and folder.is_dir():
+        shutil.rmtree(folder)
+        print(f"Deleted folder: {folder}")
+
+# Delete files
+for file in files_to_delete:
+    if file.exists() and file.is_file():
+        file.unlink()
+        print(f"Deleted file: {file}")
+
+print("\n" + "=" * 80)
+print("Cleanup complete. Shapefile preprocessing complete!")
+print("=" * 80)
+
+# ------------------------------------------------------
+# Part 2: MSA Healthcare + GDP Data Merger
+# ------------------------------------------------------
+# Configuration
+# ------------------------------------------------------
+API_KEY = "73110DFA-D36D-4A7C-99C7-183B704E1596"
+BASE_URL = "https://apps.bea.gov/api/data"
+
+# Base folder for all outputs
+DATA_DIR = Path(__file__).resolve().parent / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+HEALTHCARE_FILE = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
+GDP_FILE = DATA_DIR / "msa_gdp_percent_change.csv"
+MERGED_FILE = DATA_DIR / "merged_healthcare_jobs_with_gdp.csv"
+
+
+# ------------------------------------------------------
+# Step 1: Download and Compute GDP Percent Change
+# ------------------------------------------------------
+def download_bea_gdp_percent_change(
+    start_year: int = 2018, end_year: int = 2023, output_file: Path = GDP_FILE
+) -> pd.DataFrame | None:
+    """Download BEA GDP data for all MSAs and calculate percent change."""
+    years = ",".join(str(y) for y in range(start_year, end_year + 1))
+    params = {
+        "UserID": API_KEY,
+        "method": "GetData",
+        "datasetname": "Regional",
+        "TableName": "CAGDP1",
+        "LineCode": "1",  # Real GDP (thousands of chained 2017 dollars)
+        "Year": years,
+        "GeoFips": "MSA",
+        "ResultFormat": "json",
+    }
+
+    try:
+        print(f"📡 Downloading BEA GDP data ({start_year}-{end_year})...")
+        response = requests.get(BASE_URL, params=params, timeout=60)
+        response.raise_for_status()
+        data = response.json()
+
+        if "BEAAPI" not in data or "Results" not in data["BEAAPI"]:
+            print("⚠️ Unexpected API response format.")
+            return None
+
+        rows = data["BEAAPI"]["Results"].get("Data", [])
+        if not rows:
+            print("⚠️ No data returned from BEA API.")
+            return None
+
+        rows_df = pd.DataFrame(rows)
+        rows_df["DataValue"] = pd.to_numeric(rows_df["DataValue"], errors="coerce")
+
+        pivot_df = rows_df.pivot_table(
+            index=["GeoFips", "GeoName"],
+            columns="TimePeriod",
+            values="DataValue",
+            aggfunc="first",
+        ).reset_index()
+
+        # Calculate percent change
+        year_cols = sorted([c for c in pivot_df.columns if str(c).isdigit()])
+        level_data = pivot_df.copy()
+        for i in range(1, len(year_cols)):
+            curr, prev = year_cols[i], year_cols[i - 1]
+            pivot_df[curr] = (
+                (level_data[curr] - level_data[prev]) / level_data[prev] * 100
+            ).round(1)
+
+        pivot_df = pivot_df.drop(columns=[year_cols[0]])
+        pivot_df.to_csv(output_file, index=False)
+        print(f"✅ GDP data saved at: {output_file.resolve()}")
+        return pivot_df
+
+    except Exception as e:
+        print(f"❌ Error downloading GDP data: {e}")
+        return None
+
+
+# ------------------------------------------------------
+# Step 2: Merge Healthcare Dataset with GDP
+# ------------------------------------------------------
+def merge_healthcare_with_gdp(
+    healthcare_path: Path = HEALTHCARE_FILE,
+    gdp_path: Path = GDP_FILE,
+    output_path: Path = MERGED_FILE,
+) -> pd.DataFrame | None:
+    """Merge BEA GDP percent change data with healthcare employment dataset."""
+    print("🔄 Merging healthcare dataset with GDP data...")
+
+    if not healthcare_path.exists():
+        print(f"❌ Healthcare dataset not found: {healthcare_path}")
+        return None
+
+    if not gdp_path.exists():
+        print(f"❌ GDP dataset not found: {gdp_path}")
+        return None
+
+    rise = pd.read_csv(healthcare_path)
+    gdp = pd.read_csv(gdp_path)
+
+    rise["metro13"] = pd.to_numeric(rise["metro13"], errors="coerce")
+    gdp["GeoFips"] = pd.to_numeric(gdp["GeoFips"], errors="coerce")
+
+    # Keep only matching MSAs
+    rise = rise[rise["metro13"].isin(gdp["GeoFips"])].copy()
+
+    # Rename GDP columns
+    gdp = gdp.rename(
+        columns={
+            "2019": "gdp_growth_2019_percent",
+            "2020": "gdp_growth_2020_percent",
+            "2021": "gdp_growth_2021_percent",
+            "2022": "gdp_growth_2022_percent",
+            "2023": "gdp_growth_2023_percent",
+        }
+    )
+
+    merged = rise.merge(
+        gdp[
+            [
+                "GeoFips",
+                "gdp_growth_2019_percent",
+                "gdp_growth_2020_percent",
+                "gdp_growth_2021_percent",
+                "gdp_growth_2022_percent",
+                "gdp_growth_2023_percent",
+            ]
+        ],
+        left_on="metro13",
+        right_on="GeoFips",
+        how="left",
+    )
+
+    merged = merged.drop(columns=["GeoFips"])
+    merged.to_csv(output_path, index=False)
+    print(f"✅ Merged dataset saved at: {output_path.resolve()}")
+    print(f"   Rows: {len(merged):,} | Columns: {len(merged.columns)}")
+    return merged
+
+
+# ------------------------------------------------------
+# Step 3: Run Entire Pipeline
+# ------------------------------------------------------
+if __name__ == "__main__":
+    print("\n" + "=" * 80)
+    print("🏙️  Running MSA Healthcare + GDP Data Preparation Pipeline")
+    print("=" * 80)
+
+    gdp_df = download_bea_gdp_percent_change()
+    if gdp_df is not None:
+        merged_df = merge_healthcare_with_gdp()
+        if merged_df is not None:
+            print("\n🎉 COMPLETE! Your datasets are ready.")
+            print(f"   ➜ Output: {MERGED_FILE.resolve()}")
+        else:
+            print("⚠️ Merge step failed.")
+    else:
+        print("⚠️ GDP data download failed.")

@@ -4,9 +4,9 @@ Handles robust CSV loading with multiple path attempts and helpful error message
 """
 
 import logging
+from pathlib import Path
 
 import pandas as pd
-import Path
 import streamlit as st
 
 logging.basicConfig(
@@ -14,34 +14,32 @@ logging.basicConfig(
 )
 
 
-def try_read_csv(
-    possible_paths: list[str], file_label: str = "file"
-) -> pd.DataFrame | None:
+def try_read_csv(path: Path, file_label: str = "file") -> pd.DataFrame | None:
     """Attempt to read a CSV file from multiple possible paths.
 
     Args:
-        possible_paths: List of file paths to try
+        path: List of file paths to try
         file_label: Descriptive label for the file (used in messages)
 
     Returns:
         DataFrame if successful, None otherwise
     """
-    for p in possible_paths:
+    path = path.expanduser()
+
+    if path.exists():
         try:
-            p_expanded = Path.expanduser(p)
-            if Path.exists(p_expanded):
-                df_expanded = pd.read_csv(p_expanded)
-                logging.info(f"✓ Loaded {file_label} from {p_expanded}")
-                return df_expanded
+            df_expanded = pd.read_csv(path)
+            logging.info(f"✓ Loaded {file_label} from {path}")
+            return df_expanded
         except Exception as e:
-            logging.warning(f"✗ Failed to read {p} ({e})")
+            logging.error(f"✗ Failed to read {file_label} at {path}: {e}")
+            return None
+    else:
+        st.error(f"❌ Missing {file_label}: expected at {path}")
+        return None
 
-    # If we get here, none of the paths worked
-    st.error(f"❌ Could not locate {file_label}. Tried: {possible_paths}")
-    return None
 
-
-def load_main_data(data_paths: list[str]) -> pd.DataFrame | None:
+def load_main_data(data_paths: Path) -> pd.DataFrame | None:
     """Load and preprocess the main MSA dataset.
 
     Args:
@@ -66,13 +64,18 @@ def load_main_data(data_paths: list[str]) -> pd.DataFrame | None:
 
 
 def load_all_datasets(
-    data_paths: list[str],
-    cleaned_paths: list[str],
-    merged_1980_paths: list[str],
-    min_2022_paths: list[str],
-    gdp_paths: list[str],
+    data_paths: Path,
+    merged_1980_paths: Path,
+    min_2022_paths: Path,
+    gdp_paths: Path,
 ) -> dict:
     """Load all datasets required by the dashboard.
+
+    Args:
+        data_paths: Path to main dataset
+        merged_1980_paths: Path to merged population (1980)
+        min_2022_paths: Path to minimum dataset (2022 population)
+        gdp_paths: Path to GDP dataset
 
     Returns:
         Dictionary with dataset names as keys and DataFrames as values
@@ -83,7 +86,6 @@ def load_all_datasets(
     datasets["main"] = load_main_data(data_paths)
 
     # Load optional datasets
-    datasets["cleaned"] = try_read_csv(cleaned_paths, "cleaned dataset (for chart 6)")
     datasets["merged_1980"] = try_read_csv(
         merged_1980_paths, "merged_pop_1980 (1980 population)"
     )

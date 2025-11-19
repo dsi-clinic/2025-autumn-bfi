@@ -7,6 +7,7 @@ Keep this file minimal: export a version, a tiny logging helper, and a version a
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 __all__ = ["__version__", "get_version", "setup_logger"]
 
@@ -37,3 +38,20 @@ def setup_logger(name: str | None = None, level: int = logging.INFO) -> logging.
 
 # Ensure importing the package doesn't emit logs unless the app configures logging.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
+
+
+def find_project_root(start: Path | None = None) -> Path:
+    """Walk upward from the given file until we find the project root.
+
+    The root is identified by containing BOTH:
+    - pyproject.toml
+    - data/ directory
+    """
+    start = start or Path(__file__).resolve()
+
+    for parent in [start, *start.parents]:
+        if (parent / "pyproject.toml").exists() and (parent / "data").exists():
+            return parent
+
+    # Fallback: return directory containing gt_utilities
+    return Path(__file__).resolve().parent.parent
