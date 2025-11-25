@@ -7,83 +7,82 @@ import pandas as pd
 import streamlit as st
 
 from gt_utilities.charts import create_demographics_comparison_chart
-from gt_utilities.config import DEMOGRAPHIC_AGG_COLS, DEMOGRAPHIC_CATEGORIES
+from gt_utilities.config import DEMOGRAPHIC_AGG_COLS
+
+# def prepare_1980_tables(merged_pop_1980: pd.DataFrame) -> dict[str, pd.DataFrame]:
+#     """Prepare proportional demographics tables for 1980 data.
+
+#     Args:
+#         merged_pop_1980: Raw 1980 population data
+
+#     Returns:
+#         Dictionary mapping MSA names to demographics proportion tables
+#     """
+#     agg = merged_pop_1980.groupby(
+#         ["metro_title", "Race/Sex Indicator"], as_index=False
+#     )["Total Population"].sum()
+
+#     msa_tables = {}
+
+#     for msa, g in agg.groupby("metro_title", sort=True):
+#         p = g.pivot_table(
+#             index="Race/Sex Indicator",
+#             values="Total Population",
+#             aggfunc="sum",
+#             fill_value=0,
+#         ).reindex(DEMOGRAPHIC_CATEGORIES)
+
+#         # Calculate male proportions
+#         male_total = (
+#             p.loc[["White male", "Black male", "Other races male"]].sum().item()
+#         )
+#         male_white = (
+#             0 if male_total == 0 else p.loc["White male"].item() / male_total * 100
+#         )
+#         male_black = (
+#             0 if male_total == 0 else p.loc["Black male"].item() / male_total * 100
+#         )
+#         male_other = (
+#             0
+#             if male_total == 0
+#             else p.loc["Other races male"].item() / male_total * 100
+#         )
+
+#         # Calculate female proportions
+#         female_total = (
+#             p.loc[["White female", "Black female", "Other races female"]].sum().item()
+#         )
+#         female_white = (
+#             0
+#             if female_total == 0
+#             else p.loc["White female"].item() / female_total * 100
+#         )
+#         female_black = (
+#             0
+#             if female_total == 0
+#             else p.loc["Black female"].item() / female_total * 100
+#         )
+#         female_other = (
+#             0
+#             if female_total == 0
+#             else p.loc["Other races female"].item() / female_total * 100
+#         )
+
+#         proportions = pd.DataFrame(
+#             {
+#                 "White": [male_white, female_white],
+#                 "Black": [male_black, female_black],
+#                 "Other": [male_other, female_other],
+#             },
+#             index=["Male", "Female"],
+#         ).round(2)
+
+#         msa_tables[msa] = proportions
+
+#     return msa_tables
 
 
-def prepare_1980_tables(merged_pop_1980: pd.DataFrame) -> dict[str, pd.DataFrame]:
-    """Prepare proportional demographics tables for 1980 data.
-
-    Args:
-        merged_pop_1980: Raw 1980 population data
-
-    Returns:
-        Dictionary mapping MSA names to demographics proportion tables
-    """
-    agg = merged_pop_1980.groupby(
-        ["metro_title", "Race/Sex Indicator"], as_index=False
-    )["Total Population"].sum()
-
-    msa_tables = {}
-
-    for msa, g in agg.groupby("metro_title", sort=True):
-        p = g.pivot_table(
-            index="Race/Sex Indicator",
-            values="Total Population",
-            aggfunc="sum",
-            fill_value=0,
-        ).reindex(DEMOGRAPHIC_CATEGORIES)
-
-        # Calculate male proportions
-        male_total = (
-            p.loc[["White male", "Black male", "Other races male"]].sum().item()
-        )
-        male_white = (
-            0 if male_total == 0 else p.loc["White male"].item() / male_total * 100
-        )
-        male_black = (
-            0 if male_total == 0 else p.loc["Black male"].item() / male_total * 100
-        )
-        male_other = (
-            0
-            if male_total == 0
-            else p.loc["Other races male"].item() / male_total * 100
-        )
-
-        # Calculate female proportions
-        female_total = (
-            p.loc[["White female", "Black female", "Other races female"]].sum().item()
-        )
-        female_white = (
-            0
-            if female_total == 0
-            else p.loc["White female"].item() / female_total * 100
-        )
-        female_black = (
-            0
-            if female_total == 0
-            else p.loc["Black female"].item() / female_total * 100
-        )
-        female_other = (
-            0
-            if female_total == 0
-            else p.loc["Other races female"].item() / female_total * 100
-        )
-
-        proportions = pd.DataFrame(
-            {
-                "White": [male_white, female_white],
-                "Black": [male_black, female_black],
-                "Other": [male_other, female_other],
-            },
-            index=["Male", "Female"],
-        ).round(2)
-
-        msa_tables[msa] = proportions
-
-    return msa_tables
-
-
-def prepare_2022_tables(min_df_2022: pd.DataFrame) -> dict[str, pd.DataFrame]:
+def prepare_tables(min_df_2022: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """Prepare proportional demographics tables for 2022 data.
 
     Args:
@@ -137,29 +136,30 @@ def prepare_2022_tables(min_df_2022: pd.DataFrame) -> dict[str, pd.DataFrame]:
 
 
 def render_demographics_comparison(
-    merged_pop_1980: pd.DataFrame, min_df_2022: pd.DataFrame
+    merged_pop: pd.DataFrame,
+    latest_data_year: int = 2022,
+    earliest_data_year: int = 1980,
 ) -> None:
     """Render the complete demographics comparison section with interactive dropdown.
 
     Args:
-        merged_pop_1980: 1980 population data
-        min_df_2022: 2022 population data
+        merged_pop: Merged population DataFrame containing both year's data
+        latest_data_year: The later year with data (default: 2022)
+        earliest_data_year: The earliest year with data (default: 1980)
     """
     # Prepare tables
-    msa_tables_1980 = prepare_1980_tables(merged_pop_1980)
-    msa_tables_2022 = prepare_2022_tables(min_df_2022)
+    merged_pop_2022 = merged_pop[merged_pop["year"] == latest_data_year]
+    merged_pop_1980 = merged_pop[merged_pop["year"] == earliest_data_year]
+    msa_tables_2022 = prepare_tables(merged_pop_2022)
+    msa_tables_1980 = prepare_tables(merged_pop_1980)
 
     # Get common MSAs
     common_msas = sorted(set(msa_tables_1980.keys()) & set(msa_tables_2022.keys()))
+    # common_msas = msa_tables.keys()
 
     if not common_msas:
         st.warning("No common MSAs found between 1980 and 2022 datasets.")
         return
-
-    # Dropdown selection
-    selected_msa = st.selectbox(
-        "Select a Metropolitan Statistical Area (MSA):", common_msas, index=0
-    )
 
     # Section header
     st.markdown(
@@ -169,6 +169,11 @@ def render_demographics_comparison(
     st.markdown(
         "<p class='center-caption'>Compare Male/Female racial shares side-by-side for the selected MSA.</p>",
         unsafe_allow_html=True,
+    )
+
+    # Dropdown selection
+    selected_msa = st.selectbox(
+        "Select a Metropolitan Statistical Area (MSA):", common_msas, index=0
     )
 
     # Side-by-side tables

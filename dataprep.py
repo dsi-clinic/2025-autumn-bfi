@@ -48,29 +48,37 @@ DEPENDENCIES:
 import io
 import json
 import shutil
+
+# import logging
 import sys
 import time
 import zipfile
 from pathlib import Path
 
+# from typing import Any
 import geopandas as gpd
 import pandas as pd
 import requests
 
+from gt_utilities import find_project_root
+
 # ------------------------------------------------------
 # Part 1: GeoJSON Shapefile Preparation
 # ------------------------------------------------------
+PROJECT_ROOT = find_project_root()
+DATA_DIR = PROJECT_ROOT / "data"
+
 print("\n" + "=" * 80)
 print(
-    "Welcome to the Data Preparation Package! Your data preprocessing will commence in 10 seconds."
+    "Welcome to the Data Preparation Package! Your data preprocessing will commence in 5 seconds."
     "\n After processing, check the 'data' folder for the output files. You should see three files:"
     "\n 1) 'combined_US_regions_auto.geojson' (combined GeoJSON for MSAs and states)"
     "\n 2) 'merged_healthcare_jobs_with_gdp.csv' (merged healthcare + GDP dataset)"
     "\n 3) 'msa_gdp_percent_change.csv' (BEA GDP percent change data)"
 )
 
-for i in range(80):
-    sys.stdout.write("\r{}>".format("=" * i))
+for i in range(40):
+    sys.stdout.write("\r{}>".format("==" * i))
     sys.stdout.flush()
     time.sleep(0.125)
 
@@ -80,23 +88,27 @@ url = "https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_cbsa_5m.zip"
 
 r = requests.get(url, timeout=10)
 z = zipfile.ZipFile(io.BytesIO(r.content))
-z.extractall("data/cb_2021_us_cbsa_5m")
+extract_path_cbsa = DATA_DIR / "cb_2021_us_cbsa_5m"
+z.extractall(extract_path_cbsa)
 z.close()
 
 print("Downloaded and extracted CBSA shapefiles.")
+time.sleep(2)
 
 url2 = "https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_state_5m.zip"
 
 r2 = requests.get(url2, timeout=10)
 z2 = zipfile.ZipFile(io.BytesIO(r2.content))
-z2.extractall("data/cb_2021_us_state_5m")
+extract_path_state = DATA_DIR / "cb_2021_us_state_5m"
+z2.extractall(extract_path_state)
 z2.close()
 
 print("Downloaded and extracted State shapefiles.")
 
 # Convert extracted shapefiles to GeoJSON
 
-datadf = pd.read_csv("data/the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv")
+DATA_PATH = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
+datadf = pd.read_csv(DATA_PATH)
 # Reshape df to long format
 value_cols = [c for c in datadf.columns if c not in ["metro13", "metro_title"]]
 df_long = datadf.melt(
@@ -109,16 +121,19 @@ df_long = datadf.melt(
 print("Processing shapefiles to GeoJSON format...")
 
 shp_dirs = {
-    "cbsa": Path("data/cb_2021_us_cbsa_5m"),
-    "states": Path("data/cb_2021_us_state_5m"),
+    "cbsa": extract_path_cbsa,
+    "states": extract_path_state,
 }
+
+msa_path = DATA_DIR / "2021_US_CBSA_auto.geojson"
+states_path = DATA_DIR / "2021_US_States_auto.geojson"
 
 out_paths = {
-    "cbsa": Path("data/2021_US_CBSA_auto.geojson"),
-    "states": Path("data/2021_US_States_auto.geojson"),
+    "cbsa": msa_path,
+    "states": states_path,
 }
 
-epsg_wgs84 = 4326
+EPSG_WGS84 = 4326
 
 for key, d in shp_dirs.items():
     shp_files = sorted(d.glob("*.shp"))
@@ -131,8 +146,8 @@ for key, d in shp_dirs.items():
 
     # ensure WGS84 (GeoJSON-friendly)
 
-    if gdf.crs is None or gdf.crs.to_epsg() != epsg_wgs84:
-        gdf = gdf.to_crs(epsg=epsg_wgs84)
+    if gdf.crs is None or gdf.crs.to_epsg() != EPSG_WGS84:
+        gdf = gdf.to_crs(epsg=EPSG_WGS84)
 
     # keep common identifier/name columns where available
     if key == "cbsa":
@@ -151,10 +166,9 @@ for key, d in shp_dirs.items():
     gdf.to_file(out, driver="GeoJSON")
     print(f"Wrote {len(gdf)} features to {out}")
 
-    # --- Load the original GeoJSONs
-gdf_states = gpd.read_file("data/2021_US_States_auto.geojson")
-gdf_msas = gpd.read_file("data/2021_US_CBSA_auto.geojson")
-
+# --- Load the original GeoJSONs
+gdf_msas = gpd.read_file(msa_path)
+gdf_states = gpd.read_file(states_path)
 print("Filtering, Clipping and Processing GeoJSON features...")
 
 # --- Filter MSAs to only those you have data for
@@ -165,11 +179,13 @@ gdf_msas_data = gdf_msas[gdf_msas["CBSAFP"].astype(str).isin(msa_ids_with_data)]
 gdf_states_clipped = gdf_states.overlay(gdf_msas_data, how="difference")
 
 # --- Save for later use
-gdf_states_clipped.to_file("data/2021_US_States_clipped_auto.geojson", driver="GeoJSON")
+clipped_states_path = DATA_DIR / "2021_US_States_clipped_auto.geojson"
+gdf_states_clipped.to_file(clipped_states_path, driver="GeoJSON")
 
-with Path.open("data/2021_US_CBSA_auto.geojson", encoding="utf-8") as f:
+# --- Load clipped states and filtered MSAs
+with msa_path.open(encoding="utf-8") as f:
     msa_geo = json.load(f)
-with Path.open("data/2021_US_States_clipped_auto.geojson", encoding="utf-8") as f:
+with states_path.open(encoding="utf-8") as f:
     states_geo = json.load(f)
 
 # --- Normalize feature IDs ---
@@ -184,7 +200,7 @@ combined_geo = {
     "features": msa_geo["features"] + states_geo["features"],
 }
 
-output_path = Path("data/combined_US_regions_auto.geojson")
+output_path = DATA_DIR / "combined_US_regions_auto.geojson"
 
 with output_path.open("w", encoding="utf-8") as f:
     json.dump(combined_geo, f, ensure_ascii=False, indent=2, default=str)
@@ -193,21 +209,13 @@ with output_path.open("w", encoding="utf-8") as f:
     )
 
 # Cleanup intermediate files
-
 print("Cleaning up intermediate files...")
 
 # FOLDERS TO DELETE
-folders_to_delete = [
-    Path("data/cb_2021_us_cbsa_5m"),
-    Path("data/cb_2021_us_state_5m"),
-]
+folders_to_delete = [extract_path_cbsa, extract_path_state]
 
 # FILES TO DELETE
-files_to_delete = [
-    Path("data/2021_US_CBSA_auto.geojson"),
-    Path("data/2021_US_States_auto.geojson"),
-    Path("data/2021_US_States_clipped_auto.geojson"),
-]
+files_to_delete = [clipped_states_path, msa_path, states_path]
 
 # Delete folders
 for folder in folders_to_delete:
@@ -222,8 +230,10 @@ for file in files_to_delete:
         print(f"Deleted file: {file}")
 
 print("\n" + "=" * 80)
-print("Cleanup complete. Shapefile preprocessing complete!")
+print("Cleanup complete. Shapefile preprocessing complete! (1/2)")
 print("=" * 80)
+
+time.sleep(2)
 
 # ------------------------------------------------------
 # Part 2: MSA Healthcare + GDP Data Merger
@@ -379,7 +389,7 @@ if __name__ == "__main__":
     if gdp_df is not None:
         merged_df = merge_healthcare_with_gdp()
         if merged_df is not None:
-            print("\n🎉 COMPLETE! Your datasets are ready.")
+            print("\n🎉 COMPLETE! Your datasets are ready. (2/2)")
             print(f"   ➜ Output: {MERGED_FILE.resolve()}")
         else:
             print("⚠️ Merge step failed.")

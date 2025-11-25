@@ -26,7 +26,9 @@ dependencies = [
   "scikit-learn~=1.7.2",
   "path~=17.1.1",
   "requests~=2.32.5",
-
+  "folium==0.14.0",
+  "shapely==2.0.1",
+  "geopy==2.3.0",
 ]
 
 [build-system]
@@ -38,6 +40,9 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.distutils.egg_info]
+egg_base = "src"
 
 [tool.ruff.lint]
 extend-select = [

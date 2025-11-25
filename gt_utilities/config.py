@@ -29,10 +29,11 @@ PROJECT_ROOT = find_project_root()
 DATA_DIR = PROJECT_ROOT / "data"
 
 DATA_PATHS = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
-CLEANED_PATHS = DATA_DIR / "Cleaned_data.csv"
 GDP_PATHS = DATA_DIR / "merged_healthcare_jobs_with_gdp.csv"
-MERGED_1980_PATHS = DATA_DIR / "merged_pop_1980.csv"
-MIN_2022_PATHS = DATA_DIR / "min_df_2022.csv"
+MERGED_PATHS = DATA_DIR / "merged_bfi.csv"
+
+# MERGED_1980_PATHS = DATA_DIR / "merged_pop_1980.csv"
+# MIN_2022_PATHS = DATA_DIR / "min_df_2022.csv"
 
 # DATA_PATHS = ["../data/the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"]
 

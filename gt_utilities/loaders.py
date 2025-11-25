@@ -65,16 +65,14 @@ def load_main_data(data_paths: Path) -> pd.DataFrame | None:
 
 def load_all_datasets(
     data_paths: Path,
-    merged_1980_paths: Path,
-    min_2022_paths: Path,
+    merged_paths: Path,
     gdp_paths: Path,
 ) -> dict:
     """Load all datasets required by the dashboard.
 
     Args:
         data_paths: Path to main dataset
-        merged_1980_paths: Path to merged population (1980)
-        min_2022_paths: Path to minimum dataset (2022 population)
+        merged_paths: Path to merged BFI dataset
         gdp_paths: Path to GDP dataset
 
     Returns:
@@ -86,10 +84,10 @@ def load_all_datasets(
     datasets["main"] = load_main_data(data_paths)
 
     # Load optional datasets
-    datasets["merged_1980"] = try_read_csv(
-        merged_1980_paths, "merged_pop_1980 (1980 population)"
+    datasets["merged"] = try_read_csv(
+        merged_paths, "merged BFI dataset and 1980/2022 population and labor force data"
     )
-    datasets["min_2022"] = try_read_csv(min_2022_paths, "min_df_2022 (2022 population)")
+    # datasets["min_2022"] = try_read_csv(merged_paths, "min_df_2022 (2022 population)")
     datasets["gdp"] = try_read_csv(gdp_paths, "GDP dataset")
 
     return datasets

@@ -4,13 +4,11 @@ import streamlit as st
 
 import gt_utilities.config as config
 from gt_utilities.charts import make_colored_reg_chart, make_scatter_chart
-from gt_utilities.demographics import render_demographics_comparison
 from gt_utilities.loaders import load_all_datasets
 
 st.set_page_config(layout="wide")
 if st.button("Go back Home"):
     st.switch_page("Homepage.py")
-
 if st.button("Go to Freeroam"):
     st.switch_page("pages/2_Freeroam.py")
 st.title("Interactive Maps of MSA's")
@@ -59,8 +57,7 @@ st.markdown(
 # -------------------------
 datasets = load_all_datasets(
     config.DATA_PATHS,
-    config.MERGED_1980_PATHS,
-    config.MIN_2022_PATHS,
+    config.MERGED_PATHS,
     config.GDP_PATHS,
 )
 
@@ -133,17 +130,3 @@ if df_gdp is not None:
     st.markdown("<hr>", unsafe_allow_html=True)
 else:
     st.warning("GDP dataset not found. Supplementary GDP charts unavailable.")
-
-# -------------------------
-# Demographics Comparison Section
-# -------------------------
-merged_pop_1980 = datasets["merged_1980"]
-min_df_2022 = datasets["min_2022"]
-
-if merged_pop_1980 is None or min_df_2022 is None:
-    st.warning(
-        "1980/2022 population detail files not found. Skipping the demographics comparison section. "
-        "Place files in Downloads or ../data and reload."
-    )
-else:
-    render_demographics_comparison(merged_pop_1980, min_df_2022)

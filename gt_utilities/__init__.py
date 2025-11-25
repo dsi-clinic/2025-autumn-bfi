@@ -54,4 +54,4 @@ def find_project_root(start: Path | None = None) -> Path:
             return parent
 
     # Fallback: return directory containing gt_utilities
-    return Path(__file__).resolve().parent.parent
+    return Path(__file__).resolve().parent

@@ -8,10 +8,17 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from gt_utilities import config, find_project_root
+from gt_utilities.demographics import render_demographics_comparison
+from gt_utilities.loaders import load_all_datasets
+
 # from streamlit_plotly_events import plotly_events
 
 # --- Load data ---
-datadf = pd.read_csv("data/the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv")
+PROJECT_ROOT = find_project_root()
+DATA_DIR = PROJECT_ROOT / "data"
+bfi_source = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
+datadf = pd.read_csv(bfi_source)
 
 
 @st.cache_data
@@ -212,3 +219,23 @@ if x_var and y_var:
     st.plotly_chart(fig_scatter, use_container_width=True)
 else:
     st.info("Select two variables above to view a regression scatterplot.")
+
+# -------------------------
+# Demographics Comparison Section
+# -------------------------
+
+datasets = load_all_datasets(
+    config.DATA_PATHS,
+    config.MERGED_PATHS,
+    config.GDP_PATHS,
+)
+
+merged_pop = datasets["merged"]
+
+if merged_pop is None:
+    st.warning(
+        "1980/2022 population detail files not found. Skipping the demographics comparison section. "
+        "Place files in Downloads or ../data and reload."
+    )
+else:
+    render_demographics_comparison(merged_pop)
