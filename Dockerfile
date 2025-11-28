@@ -28,7 +28,6 @@ RUN uv sync
 
 # Run Data Preprocessing
 RUN python dataprep.py
-RUN python get_data.py
 
 # Expose Streamlit Port
 EXPOSE 8501
