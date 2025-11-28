@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    #vis.vega-embed {
+      width: 100%;
+      display: flex;
+    }
+
+    #vis.vega-embed details,
+    #vis.vega-embed details summary {
+      position: relative;
+    }
+  </style>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+</head>
+<body>
+  <div id="vis"></div>
+  <script>
+    (function(vegaEmbed) {
+      var spec = {"$schema": "https://vega.github.io/schema/vega/v5.json", "data": [{"name": "source_0", "values": [{"x": 1, "y": 2}, {"x": 2, "y": 4}, {"x": 3, "y": 6}, {"x": 4, "y": 8}]}, {"name": "source_0_x_domain_x", "values": [{"min": 1, "max": 4}]}, {"name": "source_0_y_domain_y", "values": [{"min": 2, "max": 8}]}], "marks": [{"type": "line", "name": "marks", "from": {"data": "source_0"}, "sort": {"field": "x"}, "encode": {"update": {"defined": {"signal": "isValid(datum[\"x\"]) && isFinite(+datum[\"x\"]) && isValid(datum[\"y\"]) && isFinite(+datum[\"y\"])"}, "y": {"field": "y", "scale": "y"}, "stroke": {"value": "#4c78a8"}, "x": {"field": "x", "scale": "x"}}}, "style": ["line"]}], "scales": [{"name": "x", "type": "linear", "domain": [{"signal": "(data(\"source_0_x_domain_x\")[0] || {}).min"}, {"signal": "(data(\"source_0_x_domain_x\")[0] || {}).max"}], "range": [0, {"signal": "width"}], "nice": true, "zero": false}, {"name": "y", "type": "linear", "domain": [{"signal": "(data(\"source_0_y_domain_y\")[0] || {}).min"}, {"signal": "(data(\"source_0_y_domain_y\")[0] || {}).max"}], "range": [{"signal": "height"}, 0], "nice": true, "zero": true}], "axes": [{"scale": "x", "tickCount": {"signal": "ceil(width/40)"}, "gridScale": "y", "grid": true, "labels": false, "domain": false, "maxExtent": 0, "ticks": false, "minExtent": 0, "aria": false, "zindex": 0, "orient": "bottom"}, {"scale": "y", "zindex": 0, "ticks": false, "aria": false, "labels": false, "tickCount": {"signal": "ceil(height/40)"}, "minExtent": 0, "domain": false, "gridScale": "x", "maxExtent": 0, "grid": true, "orient": "left"}, {"scale": "x", "zindex": 0, "title": "x", "orient": "bottom", "labelOverlap": true, "grid": false, "labelFlush": true, "tickCount": {"signal": "ceil(width/40)"}}, {"scale": "y", "tickCount": {"signal": "ceil(height/40)"}, "zindex": 0, "orient": "left", "title": "y", "grid": false, "labelOverlap": true}], "style": "cell", "background": "white", "width": 300, "height": 300, "padding": 5};
+      var embedOpt = {"mode": "vega"};
+
+      function showError(el, error){
+          el.innerHTML = ('<div style="color:red;">'
+                          + '<p>JavaScript Error: ' + error.message + '</p>'
+                          + "<p>This usually means there's a typo in your chart specification. "
+                          + "See the javascript console for the full traceback.</p>"
+                          + '</div>');
+          throw error;
+      }
+      const el = document.getElementById('vis');
+      vegaEmbed("#vis", spec, embedOpt)
+        .catch(error => showError(el, error));
+    })(vegaEmbed);
+
+  </script>
+</body>
+</html>
