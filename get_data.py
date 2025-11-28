@@ -9,18 +9,19 @@ import logging
 import os
 import zipfile
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 import requests
 from requests.exceptions import ReadTimeout, RequestException
 
+# Initialize Paths
 DATA_DIR = Path(os.environ.get("DATA_DIR", "data")).resolve()
 RAW_DATA_DIR = DATA_DIR / "raw_data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-LOGGER = logging.getLogger(__name__)
 
+# Initialize Logger
+LOGGER = logging.getLogger(__name__)
 
 # Make raw data urls hyper-parameters within dictionaries
 RAW_CENSUS_POP_DATA_URLS = {
@@ -51,31 +52,31 @@ def get_census_pop(data_urls: dict[str, str] = RAW_CENSUS_POP_DATA_URLS) -> None
     https://www2.census.gov/programs-surveys/popest/
     """
     for url, year in data_urls.items():
-        # gets data from URL
         try:
+            LOGGER.info("Requesting %s Census data...", year)
             r = requests.get(url, timeout=30)
             r.raise_for_status()
         except ReadTimeout as exc:
-            LOGGER.error(f"Timed out while downloading {year} census data from {url}")
+            LOGGER.error(
+                "Timed out while downloading %s census data from %s", year, url
+            )
             LOGGER.exception(exc)
             continue
         except RequestException as exc:
-            LOGGER.error(f"Failed to download {year} population data from", url)
+            LOGGER.error("Failed to download %s population data from %s", year, url)
             LOGGER.exception(exc)
             return
 
-        # saves raw data
         output_file = RAW_DATA_DIR / f"pop_{year}.csv"
 
         try:
             with output_file.open("wb") as f:
                 f.write(r.content)
+            LOGGER.info("Saved pop_%s.csv to %s", year, output_file.resolve())
         except OSError as exc:
             LOGGER.error("Failed to write output file: %s", output_file)
             LOGGER.exception(exc)
             return
-
-        LOGGER.info(f"Saved pop_{year}.csv to", output_file.resolve())
     return
 
 
@@ -88,48 +89,42 @@ def get_ubls_labor(
     https://www.bls.gov/cew/downloadable-data-files.htm
     """
     for zip_url, path in zip_urls.items():
-        # get year of data
-        if "1980" in zip_url:
-            year = "1980"
-        else:
-            year = "2022"
+        year = "1980" if "1980" in zip_url else "2022"
 
-        # get zipfile containing data
         try:
+            LOGGER.info("Requesting %s Labor data (ZIP)...", year)
             r = requests.get(zip_url, timeout=30)
             r.raise_for_status()
         except RequestException as exc:
             LOGGER.error(
-                f"Failed to download {year} labor data zipfile from %s", zip_url
+                "Failed to download %s labor data zipfile from %s", year, zip_url
             )
             LOGGER.exception(exc)
             return
 
-        # unzip and save raw data
         output_file = RAW_DATA_DIR / f"labor_{year}.csv"
 
         try:
             with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-                with (
-                    z.open(path) as source,
-                    output_file.open("wb") as target,
-                ):
+                # Check if file exists in zip before extracting
+                if path not in z.namelist():
+                    LOGGER.error("File %s not found in ZIP archive %s", path, zip_url)
+                    continue
+
+                with z.open(path) as source, output_file.open("wb") as target:
                     target.write(source.read())
+
+            LOGGER.info(
+                "Saved labor_%s.csv to %s", year, output_file.resolve()
+            )  # Fixed format
 
         except zipfile.BadZipFile:
             LOGGER.error("The downloaded file is not a valid ZIP archive.")
             return
-
-        except KeyError:
-            LOGGER.error("Expected file was NOT found inside the ZIP:\n %s", path)
-            return
-
         except OSError as exc:
             LOGGER.error("Failed to write output file: %s", output_file)
             LOGGER.exception(exc)
             return
-
-        LOGGER.info(f"Saved labor_{year}.csv to", output_file.resolve())
     return
 
 
@@ -141,37 +136,26 @@ def get_uber_county_cbsa_crosswalk(
     From National Bureau of Economic Research at:
     https://data.nber.org/cbsa-msa-fips-ssa-county-crosswalk/2013/
     """
-    # get data from url
     try:
+        LOGGER.info("Requesting NBER crosswalk data...")
         r = requests.get(url, timeout=30)
         r.raise_for_status()
-
-    except ReadTimeout as exc:
-        LOGGER.error(f"Timed out while downloading 2013 crosswalk data from {url}")
-        LOGGER.exception(exc)
+    except RequestException:
+        LOGGER.error("Failed to download crosswalk data from %s", url, exc_info=True)
         return
 
-    except RequestException as exc:
-        LOGGER.error("Failed to download 2013 crosswalk data from %s", url)
-        LOGGER.exception(exc)
-        return
-
-    # saves raw data
     output_file = RAW_DATA_DIR / "cbsatocountycrosswalk.csv"
 
     try:
         with output_file.open("wb") as f:
             f.write(r.content)
-    except OSError as exc:
-        LOGGER.error("Failed to write output file: %s", output_file)
-        LOGGER.exception(exc)
+        LOGGER.info("Saved cbsatocountycrosswalk.csv to %s", output_file.resolve())
+    except OSError:
+        LOGGER.error("Failed to write output file: %s", output_file, exc_info=True)
         return
 
-    LOGGER.info("Saved cbsatocountycrosswalk.csv to %s", output_file.resolve())
-    return
 
-
-def get_pop_1980() -> pd.DataFrame:
+def get_pop_1980() -> pd.DataFrame | None:
     """Retrieves pop_1980.csv from data/raw_data.
 
     Ignores the first couple rows because they contain informational
@@ -185,92 +169,60 @@ def get_pop_1980() -> pd.DataFrame:
 
     try:
         pop = pd.read_csv(csv_path, skiprows=5, header=0)
-        LOGGER.info("Successfully read pop_1980.csv (initial shape: %s)", pop.shape)
+        # Check logic: drop row 0 if it's empty/informational
+        if not pop.empty:
+            pop = pop.drop(0)
 
-        # Drop the first empty row
-        pop = pop.drop(0)
-        LOGGER.info("Dropped initial empty row. Final shape: %s", pop.shape)
-
+        LOGGER.info("Successfully read pop_1980.csv. Shape: %s", pop.shape)
         return pop
 
-    except FileNotFoundError:
-        LOGGER.error("pop_1980.csv not found at %s", csv_path)
-        return None
-
-    except pd.errors.EmptyDataError:
-        LOGGER.error("pop_1980.csv exists but is empty or unreadable.")
-        return None
-
     except Exception as exc:
-        LOGGER.error("Unexpected error while importing pop_1980.csv")
-        LOGGER.exception(exc)
+        LOGGER.error("Error reading pop_1980.csv: %s", exc, exc_info=True)
         return None
 
 
-def get_bfi() -> pd.DataFrame:
+def get_bfi() -> pd.DataFrame | None:
     """Retrieves original bfi csv from data folder.
 
     Returns the csv as a dataframe.
     """
     csv_path = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
-    LOGGER.info("Attempting to load BFI data from %s", csv_path)
+    LOGGER.info("Loading BFI data from %s", csv_path)
 
     try:
         bfi_df = pd.read_csv(csv_path)
-        LOGGER.info("Successfully read BFI csv (initial shape: %s)", bfi_df.shape)
-
+        LOGGER.info("Loaded BFI csv. Shape: %s", bfi_df.shape)
         return bfi_df
-
-    except FileNotFoundError:
-        LOGGER.error(
-            "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv not found at %s",
-            csv_path,
-        )
-        return None
-
-    except pd.errors.EmptyDataError:
-        LOGGER.error(
-            "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv exists but is empty or unreadable."
-        )
-        return None
-
     except Exception as exc:
-        LOGGER.error(
-            "Unexpected error while importing the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
-        )
-        LOGGER.exception(exc)
+        LOGGER.error("Error reading BFI csv: %s", exc, exc_info=True)
         return None
 
 
-def clean_bfi(bfi_df: pd.DataFrame) -> pd.DataFrame:
+def clean_bfi(bfi_df: pd.DataFrame) -> pd.DataFrame | None:
     """Turns MSAs in the original BFI dataset into string
 
     Returns the same BFI dataframe, but with metro13 entries as strings
     """
-    LOGGER.info("Starting BFI cleaning — converting metro13 to 5-digit strings.")
-
+    LOGGER.info("Cleaning BFI dataset...")
     if "metro13" not in bfi_df.columns:
-        LOGGER.error("Column 'metro13' not found in BFI dataframe.")
+        LOGGER.error("Column 'metro13' missing from BFI data.")
         return None
+
     try:
         bfi_df["metro13"] = (
             pd.to_numeric(bfi_df["metro13"], errors="coerce")
-            .astype("Int64")  # allows NA safely
+            .astype("Int64")
             .astype(str)
             .str.zfill(5)
         )
-
-        LOGGER.info("Successfully cleaned metro13 column to 5-digit strings.")
-
+        LOGGER.info("Converted 'metro13' to 5-digit strings.")
+        return bfi_df
     except Exception as exc:
-        LOGGER.error("Failed while cleaning metro13 in BFI dataset.")
-        LOGGER.exception(exc)
+        LOGGER.error("Error cleaning BFI data: %s", exc, exc_info=True)
         return None
 
-    return bfi_df
 
-
-def clean_pop_1980(pop: pd.DataFrame) -> pd.DataFrame:
+def clean_pop_1980(pop: pd.DataFrame) -> pd.DataFrame | None:
     """This function does the following cleaning:
 
     1. Queries raw dataset containing 1980 population data to become
@@ -280,156 +232,86 @@ def clean_pop_1980(pop: pd.DataFrame) -> pd.DataFrame:
     3. Transforms all FIPS codes into 5 character strings (adds leading
     zeros if original number not 5 characters long).
     """
-    LOGGER.info("Starting cleaning for 1980 population dataset...")
-
-    # validate required columns
+    LOGGER.info("Cleaning 1980 population data...")
     required_cols = ["Year of Estimate", "FIPS State and County Codes"]
     for col in required_cols:
         if col not in pop.columns:
             LOGGER.error("Missing required column '%s' in population data.", col)
             return None
 
-    # filter to only 1980
     try:
-        pop_1980 = pop.query("`Year of Estimate` == 1980")
-        LOGGER.info("Filtered to 1980: %d rows remain.", len(pop_1980))
-    except Exception as exc:
-        LOGGER.error("Error filtering rows for Year == 1980")
-        LOGGER.exception(exc)
-        return None
+        # Filter 1980
+        pop_1980 = pop.query(
+            "`Year of Estimate` == 1980"
+        ).copy()  # Use .copy() to avoid SettingWithCopy warning
 
-    if pop_1980.empty:
-        LOGGER.warning("No rows found for Year of Estimate == 1980.")
-        return pop_1980
-
-    # add Total Population
-    try:
-        # All population columns start from index 3 onward
+        # Calculate Total Population (Summing cols 3 onwards)
         cols_to_sum = list(pop_1980.columns)[3:]
-        LOGGER.info(
-            "Summing %d population columns to create 'Total Population'.",
-            len(cols_to_sum),
-        )
-
         pop_1980["Total Population"] = pop_1980[cols_to_sum].sum(axis=1)
 
-    except Exception as exc:
-        LOGGER.error("Failed to compute Total Population.")
-        LOGGER.exception(exc)
-        return None
-
-    # make FIPS 5-digit strings
-    try:
+        # Format FIPS
         pop_1980["FIPS State and County Codes"] = (
             pd.to_numeric(pop_1980["FIPS State and County Codes"], errors="coerce")
             .astype("Int64")
             .astype(str)
             .str.zfill(5)
         )
-        LOGGER.info("Successfully cleaned FIPS column to 5-digit strings.")
 
+        LOGGER.info("Cleaned 1980 data. Rows: %d", len(pop_1980))
+        return pop_1980
     except Exception as exc:
-        LOGGER.error("Failed to convert FIPS codes to 5-digit strings.")
-        LOGGER.exception(exc)
+        LOGGER.error("Error cleaning 1980 data: %s", exc, exc_info=True)
         return None
 
-    LOGGER.info(
-        "Finished cleaning 1980 population dataset. Final shape: %s", pop_1980.shape
-    )
-    return pop_1980
 
-
-def get_cbsa_county_crosswalk() -> pd.DataFrame:
-    """Retrieves the cbsa to county crosswalk csv.
-
-    Returns the csv as a dataframe.
-    """
+def get_cbsa_county_crosswalk() -> pd.DataFrame | None:
+    """Retrieves the cbsa to county crosswalk csv."""
     csv_path = RAW_DATA_DIR / "cbsatocountycrosswalk.csv"
-    LOGGER.info("Attempting to load BFI data from %s", csv_path)
+    LOGGER.info("Loading crosswalk from %s", csv_path)
 
     try:
         msa_county = pd.read_csv(csv_path, encoding="latin1")
-        LOGGER.info(
-            "Successfully read cbsatocountycrosswalk.csv (initial shape: %s)",
-            msa_county.shape,
-        )
-
+        LOGGER.info("Loaded crosswalk. Shape: %s", msa_county.shape)
         return msa_county
-
-    except FileNotFoundError:
-        LOGGER.error("cbsatocountycrosswalk.csv not found at %s", csv_path)
-        return None
-
-    except pd.errors.EmptyDataError:
-        LOGGER.error("cbsatocountycrosswalk.csv exists but is empty or unreadable.")
-        return None
-
     except Exception as exc:
-        LOGGER.error("Unexpected error while importing cbsatocountycrosswalk.csv")
-        LOGGER.exception(exc)
+        LOGGER.error("Error reading crosswalk: %s", exc, exc_info=True)
         return None
 
 
-def clean_cbsa_county_crosswalk(msa_county: pd.DataFrame) -> pd.DataFrame:
-    """Creates FIPS codes and turns CBSA codes in the original crosswalk dataset into string
+def clean_cbsa_county_crosswalk(msa_county: pd.DataFrame) -> pd.DataFrame | None:
+    """Creates FIPS codes and cleans CBSA codes."""
+    LOGGER.info("Cleaning crosswalk data...")
 
-    Merges state FIPS and County FIPS to get overall FIPS code and returns the same
-    crosswalk dataframe, but with that new column and CBSA entries as strings
-    """
-    LOGGER.info("Starting FIPS cleaning — Combining State and County FIPS.")
+    required = ["fipsstatecode", "fipscountycode", "cbsacode"]
+    if not all(col in msa_county.columns for col in required):
+        LOGGER.error("Missing columns in crosswalk. Required: %s", required)
+        return None
 
-    if "fipsstatecode" not in msa_county.columns:
-        LOGGER.error("Column 'fipsstatecode' not found in crosswalk dataframe.")
-        return None
-    if "fipscountycode" not in msa_county.columns:
-        LOGGER.error("Column 'fipscountycode' not found in crosswalk dataframe.")
-        return None
     try:
-        msa_county["fips"] = (
-            pd.to_numeric(msa_county["fipsstatecode"], errors="coerce")
-            .astype("Int64")  # allows NA safely
-            .astype(str)
-            .str.zfill(2)
-        ) + (
-            pd.to_numeric(msa_county["fipscountycode"], errors="coerce")
-            .astype("Int64")  # allows NA safely
-            .astype(str)
-            .str.zfill(3)
-        )
+        # Create full FIPS
+        msa_county["fips"] = pd.to_numeric(
+            msa_county["fipsstatecode"], errors="coerce"
+        ).astype("Int64").astype(str).str.zfill(2) + pd.to_numeric(
+            msa_county["fipscountycode"], errors="coerce"
+        ).astype("Int64").astype(str).str.zfill(3)
 
-        LOGGER.info("Successfully created FIPS column as 5-digit strings.")
-
-    except Exception as exc:
-        LOGGER.error("Failed while creating FIPS in crosswalk dataset.")
-        LOGGER.exception(exc)
-        return None
-
-    LOGGER.info("Starting CBSA cleaning — converting CBSA codes to 5-digit strings.")
-
-    if "cbsacode" not in msa_county.columns:
-        LOGGER.error("Column 'cbsacode' not found in crosswalk dataframe.")
-        return None
-    try:
+        # Clean CBSA
         msa_county["cbsacode"] = (
             pd.to_numeric(msa_county["cbsacode"], errors="coerce")
-            .astype("Int64")  # allows NA safely
+            .astype("Int64")
             .astype(str)
             .str.zfill(5)
         )
-
-        LOGGER.info("Successfully convert CBSA column to 5-digit strings.")
-
+        LOGGER.info("Crosswalk cleaned. Added 'fips' and formatted 'cbsacode'.")
+        return msa_county
     except Exception as exc:
-        LOGGER.error("Failed while cleaning CBSA in crosswalk dataset.")
-        LOGGER.exception(exc)
+        LOGGER.error("Error cleaning crosswalk: %s", exc, exc_info=True)
         return None
-
-    return msa_county
 
 
 def merge_pop_1980_with_cbsa(
     pop_1980: pd.DataFrame, msa_county: pd.DataFrame
-) -> pd.DataFrame:
+) -> pd.DataFrame | None:
     """Merge cleaned 1980 population data with CBSA–county crosswalk.
 
     Inputs:
@@ -439,29 +321,8 @@ def merge_pop_1980_with_cbsa(
     Returns:
         merged dataframe or None if merge fails
     """
-    LOGGER.info("Starting merge of 1980 population data with CBSA–county crosswalk.")
+    LOGGER.info("Merging 1980 Pop with CBSA Crosswalk...")
 
-    # validate expected columns
-    required_pop_cols = ["FIPS State and County Codes"]
-    required_crosswalk_cols = ["cbsacode", "fips", "cbsatitle"]
-
-    for col in required_pop_cols:
-        if col not in pop_1980.columns:
-            LOGGER.error("Missing column '%s' in pop_1980 dataframe.", col)
-            return None
-
-    for col in required_crosswalk_cols:
-        if col not in msa_county.columns:
-            LOGGER.error("Missing column '%s' in msa_county dataframe.", col)
-            return None
-
-    LOGGER.info(
-        "pop_1980 shape before merge: %s | crosswalk shape: %s",
-        pop_1980.shape,
-        msa_county.shape,
-    )
-
-    # merge
     try:
         merged = pop_1980.merge(
             msa_county[["cbsacode", "fips", "cbsatitle"]],
@@ -470,37 +331,23 @@ def merge_pop_1980_with_cbsa(
             how="inner",
         ).drop(columns=["FIPS State and County Codes"])
 
-        LOGGER.info(
-            "Merge completed. Output shape: %s (merged rows: %d)",
-            merged.shape,
-            len(merged),
-        )
-
-        # warn if suspiciously few matches
-        if merged.empty:
-            LOGGER.warning("Merge produced ZERO rows. Possible FIPS mismatch.")
-
+        LOGGER.info("Merge complete. Result shape: %s", merged.shape)
         return merged
-
     except Exception as exc:
-        LOGGER.error("Failed to merge 1980 population data with CBSA crosswalk.")
-        LOGGER.exception(exc)
+        LOGGER.error("Error merging 1980 pop with crosswalk: %s", exc, exc_info=True)
         return None
 
 
 def merge_pop_1980_with_bfi(
     msa_pop_1980: pd.DataFrame, bfi_df: pd.DataFrame
-) -> pd.DataFrame:
+) -> pd.DataFrame | None:
     """Only keeps rows with MSAs relevant/matching to those in the original BFI dataset.
 
     Returns a subset of the original dataframe that matches that requirement
     """
-    LOGGER.info("Beginning merge of 1980 population data with BFI MSA information.")
+    LOGGER.info("Filtering 1980 Pop to match BFI MSAs...")
 
     try:
-        before_rows = msa_pop_1980.shape[0]
-        LOGGER.info("msa_pop_1980 has %d rows before merge.", before_rows)
-
         merged_pop_1980 = msa_pop_1980.merge(
             bfi_df[["metro13", "metro_title"]],
             left_on="cbsacode",
@@ -508,31 +355,16 @@ def merge_pop_1980_with_bfi(
             how="inner",
         ).drop(columns=["cbsacode", "cbsatitle"])
 
-        after_rows = merged_pop_1980.shape[0]
         LOGGER.info(
-            "Merge complete. Rows: %d → %d (kept %.2f%%).",
-            before_rows,
-            after_rows,
-            100 * after_rows / before_rows if before_rows > 0 else 0,
+            "Filtered 1980 data to %d rows matching BFI MSAs.", len(merged_pop_1980)
         )
         return merged_pop_1980
-
-    except KeyError as exc:
-        LOGGER.error("KeyError during merge. Expected columns missing: %s", exc)
-        LOGGER.error(
-            "Available msa_pop_1980 columns: %s", msa_pop_1980.columns.tolist()
-        )
-        LOGGER.error("Available bfi_df columns: %s", bfi_df.columns.tolist())
-        LOGGER.exception(exc)  # stack trace
-        raise
-
     except Exception as exc:
-        LOGGER.error("Unexpected error merging 1980 population data with BFI dataset.")
-        LOGGER.exception(exc)
-        raise
+        LOGGER.error("Error merging with BFI: %s", exc, exc_info=True)
+        return None
 
 
-def aggregate_pop_1980(merged_pop_1980: pd.DataFrame) -> pd.DataFrame:
+def aggregate_pop_1980(merged_pop_1980: pd.DataFrame) -> pd.DataFrame | None:
     """Aggregates 1980 population data to the MSA level.
 
     Sums across all counties (FIPS) for each Race/Sex category.
@@ -540,260 +372,103 @@ def aggregate_pop_1980(merged_pop_1980: pd.DataFrame) -> pd.DataFrame:
     Returns:
         Aggregated dataframe or None if the aggregation fails.
     """
-    LOGGER.info("Starting aggregation of 1980 population data to MSA level.")
+    LOGGER.info("Aggregating 1980 Pop to MSA level...")
 
-    # required grouping columns
-    group_cols = [
-        "Year of Estimate",
-        "Race/Sex Indicator",
-        "metro13",
-        "metro_title",
-    ]
+    group_cols = ["Year of Estimate", "Race/Sex Indicator", "metro13", "metro_title"]
 
-    # validate columns
-    for col in group_cols:
-        if col not in merged_pop_1980.columns:
-            LOGGER.error("Missing required grouping column '%s'.", col)
-            return None
-
-    if "fips" not in merged_pop_1980.columns:
-        LOGGER.warning("Column 'fips' not found — continuing without dropping it.")
-    else:
-        LOGGER.info("Dropping county-level column 'fips' before aggregation.")
-
-    LOGGER.info(
-        "Shape before aggregation: %s | Grouping by columns: %s",
-        merged_pop_1980.shape,
-        group_cols,
-    )
-
-    # aggregate
     try:
         pop_1980_agg = (
             merged_pop_1980.drop(columns=["fips"], errors="ignore")
             .groupby(group_cols, as_index=False)
             .sum(numeric_only=True)
         )
-
-        LOGGER.info(
-            "Aggregation completed. Output shape: %s (rows: %d)",
-            pop_1980_agg.shape,
-            len(pop_1980_agg),
-        )
-
-        if pop_1980_agg.empty:
-            LOGGER.warning("Aggregation returned ZERO rows. Check grouping keys.")
-
+        LOGGER.info("Aggregation complete. Result shape: %s", pop_1980_agg.shape)
         return pop_1980_agg
-
     except Exception as exc:
-        LOGGER.error("Failed to aggregate 1980 population data.")
-        LOGGER.exception(exc)
+        LOGGER.error("Error aggregating 1980 data: %s", exc, exc_info=True)
         return None
 
 
-def transform_pop_1980_to_final(
-    pop_1980_agg: pd.DataFrame,
-) -> pd.DataFrame:  # make 1980 look like 2022 data structure
-    """Transforms aggregated 1980 MSA population data
+def transform_pop_1980_to_final(pop_1980_agg: pd.DataFrame) -> pd.DataFrame | None:
+    """Transforms aggregated 1980 MSA population data to wide format.
 
     Final long-then-wide format has MSA totals, gender totals,
     and race/sex breakdowns.
     """
-    LOGGER.info("Starting 1980 population long-to-wide transformation.")
+    LOGGER.info("Transforming 1980 aggregated data to final wide format...")
 
-    # validate required columns
-    required_cols = [
-        "Year of Estimate",
-        "Race/Sex Indicator",
-        "metro13",
-        "metro_title",
-        "Total Population",
-    ]
-    for col in required_cols:
-        if col not in pop_1980_agg.columns:
-            LOGGER.error("Missing required column '%s' in pop_1980_agg.", col)
-            return None
-
-    # create age group list
     try:
+        # Construct age groups list
         age_groups_with_total = ["Total Population"] + pop_1980_agg.columns[
             3:-4
         ].to_list()
-        LOGGER.info(
-            "Constructed %d age groups including Total Population.",
-            len(age_groups_with_total),
-        )
-    except Exception as exc:
-        LOGGER.error("Failed constructing age groups from pop_1980_agg.")
-        LOGGER.exception(exc)
-        return None
+        id_vars = ["Year of Estimate", "metro13", "metro_title"]
 
-    id_vars = ["Year of Estimate", "metro13", "metro_title"]
-
-    # melt to long format
-    try:
+        # Melt to long
         long_df = pop_1980_agg.melt(
             id_vars=id_vars + ["Race/Sex Indicator"],
             value_vars=age_groups_with_total,
             var_name="AGEGRP",
             value_name="Population",
         )
-        LOGGER.info("Long-format population created. Shape: %s", long_df.shape)
 
-        if long_df.empty:
-            LOGGER.warning("long_df is empty after melt — check input data.")
-    except Exception as exc:
-        LOGGER.error("Failed while melting data into long format.")
-        LOGGER.exception(exc)
-        return None
+        # Normalize indicator
+        long_df["Race/Sex Indicator"] = (
+            long_df["Race/Sex Indicator"].astype(str).str.strip().str.lower()
+        )
 
-    # normalize race/sex labels
-    try:
-        rsi_norm = long_df["Race/Sex Indicator"].astype(str).str.strip().str.lower()
-        LOGGER.info("Normalized Race/Sex Indicator labels.")
-    except Exception as exc:
-        LOGGER.error("Failed while normalizing Race/Sex Indicator labels.")
-        LOGGER.exception(exc)
-        return None
-
-    # compute MSA totals
-    try:
+        # Compute Totals
+        # 1. MSA Totals
         msa_totals = long_df.groupby(
             id_vars + ["AGEGRP"], as_index=False, observed=True
         )["Population"].sum()
         msa_totals["Race/Sex Indicator"] = "MSA Population"
-        LOGGER.info("Computed MSA-level totals. Shape: %s", msa_totals.shape)
-    except Exception as exc:
-        LOGGER.error("Failed computing MSA totals.")
-        LOGGER.exception(exc)
-        return None
 
-    # compute gender totals
-    try:
-        male_mask = rsi_norm.str.endswith(" male")
-        female_mask = rsi_norm.str.endswith(" female")
-
+        # 2. Gender Totals
         total_male = (
-            long_df.loc[male_mask]
+            long_df[long_df["Race/Sex Indicator"].str.endswith(" male")]
             .groupby(id_vars + ["AGEGRP"], as_index=False, observed=True)["Population"]
             .sum()
         )
         total_male["Race/Sex Indicator"] = "Total male"
 
         total_female = (
-            long_df.loc[female_mask]
+            long_df[long_df["Race/Sex Indicator"].str.endswith(" female")]
             .groupby(id_vars + ["AGEGRP"], as_index=False, observed=True)["Population"]
             .sum()
         )
         total_female["Race/Sex Indicator"] = "Total female"
 
-        LOGGER.info(
-            "Computed male totals shape=%s and female totals shape=%s",
-            total_male.shape,
-            total_female.shape,
-        )
-    except Exception as exc:
-        LOGGER.error("Failed computing gender totals (male/female).")
-        LOGGER.exception(exc)
-        return None
-
-    # append computed categories
-    try:
+        # Combine
         long_augmented = pd.concat(
             [long_df, msa_totals, total_male, total_female], ignore_index=True
         )
-        LOGGER.info("Augmented long-format dataset. Shape: %s", long_augmented.shape)
-    except Exception as exc:
-        LOGGER.error("Failed concatenating augmented population categories.")
-        LOGGER.exception(exc)
-        return None
 
-    # pivot back to wide format
-    try:
+        # Pivot to Wide
         pop_1980_wide = long_augmented.pivot_table(
             index=id_vars + ["AGEGRP"],
             columns="Race/Sex Indicator",
             values="Population",
             aggfunc="sum",
         ).reset_index()
-
         pop_1980_wide.columns.name = None
-        LOGGER.info("Pivoted to wide format. Shape: %s", pop_1980_wide.shape)
 
-        if pop_1980_wide.empty:
-            LOGGER.warning("Final wide table is empty — check transformations.")
-    except Exception as exc:
-        LOGGER.error("Failed pivoting population data to wide format.")
-        LOGGER.exception(exc)
-        return None
-
-    # map AGEGRP to integer codes
-    try:
+        # Map AGEGRP to IDs
         age_id_map = {name: i for i, name in enumerate(age_groups_with_total)}
         pop_1980_wide["AGEGRP"] = (
             pop_1980_wide["AGEGRP"].map(age_id_map).astype("Int64")
         )
-        LOGGER.info("Mapped AGEGRP labels to integers.")
+
+        LOGGER.info("Transformation complete. Final shape: %s", pop_1980_wide.shape)
+        return pop_1980_wide
+
     except Exception as exc:
-        LOGGER.error("Failed mapping AGEGRP values.")
-        LOGGER.exception(exc)
+        LOGGER.error("Error transforming 1980 data: %s", exc, exc_info=True)
         return None
 
-    # final column ordering
-    try:
-        race_cols = [c for c in pop_1980_wide.columns if c not in id_vars + ["AGEGRP"]]
-        preferred = [
-            c
-            for c in ["MSA Population", "Total male", "Total female"]
-            if c in race_cols
-        ]
-        others = [c for c in race_cols if c not in preferred]
-        race_cols = preferred + others
 
-        final_pop_1980 = (
-            pop_1980_wide.sort_values(id_vars + ["AGEGRP"]).reset_index(drop=True)
-        )[id_vars + ["AGEGRP"] + race_cols]
-
-        LOGGER.info(
-            "Final 1980 population dataset created. Shape: %s", final_pop_1980.shape
-        )
-    except Exception as exc:
-        LOGGER.error("Failed constructing final output table.")
-        LOGGER.exception(exc)
-        return None
-
-    LOGGER.info("1980 population transformation pipeline completed successfully.")
-    return final_pop_1980
-
-
-def rename_pop_1980_columns(final_pop_1980: pd.DataFrame) -> pd.DataFrame:
+def rename_pop_1980_columns(final_pop_1980: pd.DataFrame) -> pd.DataFrame | None:
     """Renames columns in the 1980 final population table to match 2022 naming."""
-    LOGGER.info("Starting renaming of final_pop_1980 columns to 2022 format.")
-
-    if final_pop_1980 is None or final_pop_1980.empty:
-        LOGGER.error("final_pop_1980 is empty or None. Cannot rename columns.")
-        return None
-
-    expected_before = [
-        "MSA Population",
-        "Total male",
-        "Total female",
-        "Black female",
-        "Black male",
-        "Other races female",
-        "Other races male",
-        "White female",
-        "White male",
-        "Year of Estimate",
-    ]
-
-    missing_cols = [c for c in expected_before if c not in final_pop_1980.columns]
-    if missing_cols:
-        LOGGER.warning(
-            "Some expected columns for renaming are missing: %s", missing_cols
-        )
-
     rename_map = {
         "MSA Population": "TOT_POP",
         "Total male": "TOT_MALE",
@@ -809,52 +484,25 @@ def rename_pop_1980_columns(final_pop_1980: pd.DataFrame) -> pd.DataFrame:
 
     try:
         final_pop_1980_renamed = final_pop_1980.rename(columns=rename_map)
-        LOGGER.info(
-            "Renamed final_pop_1980 columns. New columns: %s",
-            list(final_pop_1980_renamed.columns),
-        )
+        LOGGER.info("Renamed 1980 columns to 2022 standard.")
         return final_pop_1980_renamed
-
     except Exception as exc:
-        LOGGER.error("Failed renaming columns in final_pop_1980.")
-        LOGGER.exception(exc)
+        LOGGER.error("Error renaming columns: %s", exc, exc_info=True)
         return None
 
 
-def make_msa_tables(final_pop_df: pd.DataFrame) -> pd.DataFrame:
+def make_msa_tables(final_pop_df: pd.DataFrame) -> dict:
     """Builds 1980 MSA-level race/sex proportion tables and logs all steps.
 
     Returns:
         dict: mapping {msa_title: DataFrame of 2x3 proportions}
     """
-    LOGGER.info("Starting construction of 1980 MSA race/sex proportion tables.")
+    LOGGER.info("Building MSA proportion tables...")
 
-    if final_pop_df is None or final_pop_df.empty:
-        LOGGER.error("final_pop_1980 is empty or None. Cannot compute proportions.")
-        return {}
+    msa_tables = {}
 
-    required_cols = {
-        "metro_title",
-        "TOT_POP",
-        "TOT_MALE",
-        "TOT_FEMALE",
-        "WAC_MALE",
-        "BAC_MALE",
-        "OTHER_MALE",
-        "WAC_FEMALE",
-        "BAC_FEMALE",
-        "OTHER_FEMALE",
-    }
-
-    missing = required_cols - set(final_pop_df.columns)
-    if missing:
-        LOGGER.error(
-            "Missing required columns for proportion calculations: %s", missing
-        )
-        return {}
-
-    LOGGER.info("Aggregating totals by metro_title.")
     try:
+        # Aggregate totals by MSA
         agg_cols = [
             "TOT_POP",
             "TOT_MALE",
@@ -866,82 +514,50 @@ def make_msa_tables(final_pop_df: pd.DataFrame) -> pd.DataFrame:
             "BAC_FEMALE",
             "OTHER_FEMALE",
         ]
+
+        # Ensure cols exist
+        if not all(col in final_pop_df.columns for col in agg_cols + ["metro_title"]):
+            LOGGER.error("Missing columns required for proportion tables.")
+            return {}
+
         msa_totals = final_pop_df.groupby("metro_title", as_index=False)[agg_cols].sum()
-        LOGGER.info("Computed MSA totals for %d MSAs.", msa_totals.shape[0])
-    except Exception as exc:
-        LOGGER.error("Failed during aggregation.")
-        LOGGER.exception(exc)
-        return {}
 
-    # male proportions
-    LOGGER.info("Computing male race proportions.")
-    try:
-        male_props = msa_totals[
-            ["metro_title", "WAC_MALE", "BAC_MALE", "OTHER_MALE", "TOT_MALE"]
-        ].copy()
+        for _, row in msa_totals.iterrows():
+            msa = row["metro_title"]
 
-        male_props[["White", "Black", "Other"]] = male_props[
-            ["WAC_MALE", "BAC_MALE", "OTHER_MALE"]
-        ].div(male_props["TOT_MALE"], axis=0)
+            # Avoid Division by Zero
+            t_male = row["TOT_MALE"] if row["TOT_MALE"] > 0 else 1
+            t_female = row["TOT_FEMALE"] if row["TOT_FEMALE"] > 0 else 1
 
-        male_props = male_props[["metro_title", "White", "Black", "Other"]]
-    except Exception as exc:
-        LOGGER.error("Failed computing male proportions.")
-        LOGGER.exception(exc)
-        return {}
-
-    # female proportions
-    LOGGER.info("Computing female race proportions.")
-    try:
-        female_props = msa_totals[
-            ["metro_title", "WAC_FEMALE", "BAC_FEMALE", "OTHER_FEMALE", "TOT_FEMALE"]
-        ].copy()
-
-        female_props[["White", "Black", "Other"]] = female_props[
-            ["WAC_FEMALE", "BAC_FEMALE", "OTHER_FEMALE"]
-        ].div(female_props["TOT_FEMALE"], axis=0)
-
-        female_props = female_props[["metro_title", "White", "Black", "Other"]]
-    except Exception as exc:
-        LOGGER.error("Failed computing female proportions.")
-        LOGGER.exception(exc)
-        return {}
-
-    # assemble per-MSA tables
-    LOGGER.info("Building individual MSA tables (2x3 proportion matrices).")
-    msa_tables = {}
-
-    try:
-        for msa in msa_totals["metro_title"]:
-            male_row = male_props.loc[
-                male_props["metro_title"] == msa, ["White", "Black", "Other"]
-            ].squeeze()
-
-            female_row = female_props.loc[
-                female_props["metro_title"] == msa, ["White", "Black", "Other"]
-            ].squeeze()
+            male_stats = [
+                row["WAC_MALE"] / t_male,
+                row["BAC_MALE"] / t_male,
+                row["OTHER_MALE"] / t_male,
+            ]
+            female_stats = [
+                row["WAC_FEMALE"] / t_female,
+                row["BAC_FEMALE"] / t_female,
+                row["OTHER_FEMALE"] / t_female,
+            ]
 
             table = pd.DataFrame(
-                [male_row.to_numpy(), female_row.to_numpy()],
+                [male_stats, female_stats],
                 index=["Male", "Female"],
                 columns=["White", "Black", "Other"],
             ).astype(float)
 
-            table = (table * 100).round(2)
-            msa_tables[msa] = table
+            msa_tables[msa] = (table * 100).round(2)
 
-        LOGGER.info("Finished building tables for %d MSAs.", len(msa_tables))
+        LOGGER.info("Generated proportion tables for %d MSAs.", len(msa_tables))
+        return msa_tables
 
     except Exception as exc:
-        LOGGER.error("Error assembling proportion tables.")
-        LOGGER.exception(exc)
+        LOGGER.error("Error building MSA tables: %s", exc, exc_info=True)
         return {}
 
-    return msa_tables
 
-
-def get_pop_2022() -> pd.DataFrame:
-    """Returns cleaned 2022 population dataframe
+def get_pop_2022() -> pd.DataFrame | None:
+    """Returns cleaned 2022 population dataframe.
 
     Loads the 2022 population CSV from raw_data, filters to the correct year,
     drops unused columns, and returns a cleaned dataframe.
@@ -957,8 +573,7 @@ def get_pop_2022() -> pd.DataFrame:
         LOGGER.error("pop_2022.csv not found at path: %s", file_path)
         return None
     except Exception as exc:
-        LOGGER.error("Failed to read pop_2022.csv.")
-        LOGGER.exception(exc)
+        LOGGER.error("Failed to read pop_2022.csv: %s", exc, exc_info=True)
         return None
 
     # drop irrelevant columns
@@ -972,31 +587,33 @@ def get_pop_2022() -> pd.DataFrame:
     try:
         pop2 = pop2.drop(columns=[c for c in drop_cols if c in pop2.columns])
         LOGGER.info("Dropped columns: %s", drop_cols)
-    except Exception as exc:
-        LOGGER.error("Error dropping unused columns from pop_2022.")
-        LOGGER.exception(exc)
+    except Exception:
+        LOGGER.error("Error dropping unused columns from pop_2022.", exc_info=True)
         return None
 
     # filter for 2022
     try:
         before = pop2.shape[0]
-        pop2 = pop2.query("`YEAR` == 4")  # 4 = 7/1/2022 estimate
-        after = pop2.shape[0]
-        LOGGER.info("Filtered YEAR==4 (2022): %d → %d rows", before, after)
-    except Exception as exc:
-        LOGGER.error("Error filtering pop_2022 for YEAR == 4.")
-        LOGGER.exception(exc)
+        # Querying for YEAR == 4 (2022 estimate)
+        if "YEAR" in pop2.columns:
+            pop2 = pop2.query("`YEAR` == 4").copy()
+            after = pop2.shape[0]
+            LOGGER.info("Filtered YEAR==4 (2022): %d -> %d rows", before, after)
+        else:
+            LOGGER.warning(
+                "'YEAR' column missing. Assuming data is already filtered for 2022."
+            )
+    except Exception:
+        LOGGER.error("Error filtering pop_2022 for YEAR == 4.", exc_info=True)
         return None
 
     # drop YEAR column
     try:
-        pop2 = pop2.drop(columns=["YEAR"])
-        LOGGER.info("Dropped YEAR column.")
-    except KeyError:
-        LOGGER.warning("YEAR column not found when attempting to drop it.")
-    except Exception as exc:
-        LOGGER.error("Unexpected error dropping YEAR column.")
-        LOGGER.exception(exc)
+        if "YEAR" in pop2.columns:
+            pop2 = pop2.drop(columns=["YEAR"])
+            LOGGER.info("Dropped YEAR column.")
+    except Exception:
+        LOGGER.error("Unexpected error dropping YEAR column.", exc_info=True)
         return None
 
     LOGGER.info(
@@ -1008,16 +625,14 @@ def get_pop_2022() -> pd.DataFrame:
     return pop2
 
 
-def clean_pop_2022(pop2: pd.DataFrame) -> pd.DataFrame:
-    """Turns CBSAs in the original pop_2022 dataset into string
-
-    Returns the same pop_2022 dataframe, but with CBSA entries as strings
-    """
+def clean_pop_2022(pop2: pd.DataFrame) -> pd.DataFrame | None:
+    """Turns CBSAs in the original pop_2022 dataset into string."""
     LOGGER.info("Starting pop_2022 cleaning — converting CBSA to 5-digit strings.")
 
     if "CBSA" not in pop2.columns:
-        LOGGER.error("Column 'CBSA' not found in BFI dataframe.")
+        LOGGER.error("Column 'CBSA' not found in pop_2022 dataframe.")
         return None
+
     try:
         pop2["CBSA"] = (
             pd.to_numeric(pop2["CBSA"], errors="coerce")
@@ -1027,21 +642,18 @@ def clean_pop_2022(pop2: pd.DataFrame) -> pd.DataFrame:
         )
 
         LOGGER.info("Successfully cleaned CBSA column to 5-digit strings.")
+        return pop2
 
-    except Exception as exc:
-        LOGGER.error("Failed while cleaning CBSA in pop_2022 dataset.")
-        LOGGER.exception(exc)
+    except Exception:
+        LOGGER.error("Failed while cleaning CBSA in pop_2022 dataset.", exc_info=True)
         return None
 
-    return pop2
 
-
-def merge_pop_2022_with_bfi(pop2: pd.DataFrame, bfi_df: pd.DataFrame) -> pd.DataFrame:
-    """Only keeps rows with MSAs relevant/matching to those in the original BFI dataset.
-
-    Returns a subset of the original dataframe that matches that requirement
-    """
-    LOGGER.info("Beginning merge of 2020 population data with BFI MSA information.")
+def merge_pop_2022_with_bfi(
+    pop2: pd.DataFrame, bfi_df: pd.DataFrame
+) -> pd.DataFrame | None:
+    """Only keeps rows with MSAs relevant/matching to those in the original BFI dataset."""
+    LOGGER.info("Beginning merge of 2022 population data with BFI MSA information.")
 
     try:
         before_rows = pop2.shape[0]
@@ -1056,7 +668,7 @@ def merge_pop_2022_with_bfi(pop2: pd.DataFrame, bfi_df: pd.DataFrame) -> pd.Data
 
         after_rows = merged_pop_2022.shape[0]
         LOGGER.info(
-            "Merge complete. Rows: %d → %d (kept %.2f%%).",
+            "Merge complete. Rows: %d -> %d (kept %.2f%%).",
             before_rows,
             after_rows,
             100 * after_rows / before_rows if before_rows > 0 else 0,
@@ -1065,20 +677,19 @@ def merge_pop_2022_with_bfi(pop2: pd.DataFrame, bfi_df: pd.DataFrame) -> pd.Data
 
     except KeyError as exc:
         LOGGER.error("KeyError during merge. Expected columns missing: %s", exc)
-        LOGGER.error(
-            "Available msa_pop_2022 columns: %s", merged_pop_2022.columns.tolist()
-        )
+        LOGGER.error("Available pop2 columns: %s", pop2.columns.tolist())
         LOGGER.error("Available bfi_df columns: %s", bfi_df.columns.tolist())
-        LOGGER.exception(exc)  # stack trace
-        raise
+        return None
 
-    except Exception as exc:
-        LOGGER.error("Unexpected error merging 2022 population data with BFI dataset.")
-        LOGGER.exception(exc)
-        raise
+    except Exception:
+        LOGGER.error(
+            "Unexpected error merging 2022 population data with BFI dataset.",
+            exc_info=True,
+        )
+        return None
 
 
-def organize_pop_2022_minimal(merged_pop_2022: pd.DataFrame) -> pd.DataFrame:
+def organize_pop_2022_minimal(merged_pop_2022: pd.DataFrame) -> pd.DataFrame | None:
     """Restructures merged 2022 population data into MSA totals by race/sex.
 
     Returns a cleaned dataframe with:
@@ -1116,21 +727,16 @@ def organize_pop_2022_minimal(merged_pop_2022: pd.DataFrame) -> pd.DataFrame:
         LOGGER.error(
             "Missing required columns for 2022 restructuring: %s", missing_cols
         )
-        raise KeyError(f"Missing required columns: {missing_cols}")
+        return None
 
-    # filter AGEGRP == 0
     try:
+        # filter AGEGRP == 0 (Total Age)
         before = merged_pop_2022.shape[0]
         min_df_2022 = merged_pop_2022.query("`AGEGRP` == 0").copy()
         after = min_df_2022.shape[0]
-        LOGGER.info("Filtered AGEGRP==0: %d → %d rows.", before, after)
-    except Exception as exc:
-        LOGGER.error("Failed to filter AGEGRP == 0 for 2022 population.")
-        LOGGER.exception(exc)
-        raise
+        LOGGER.info("Filtered AGEGRP==0: %d -> %d rows.", before, after)
 
-    # select base columns
-    try:
+        # select base columns
         min_df_2022 = min_df_2022[
             [
                 "metro13",
@@ -1144,33 +750,27 @@ def organize_pop_2022_minimal(merged_pop_2022: pd.DataFrame) -> pd.DataFrame:
                 "BAC_FEMALE",
             ]
         ]
-        LOGGER.info("Selected base demographic columns for 2022 minimal frame.")
-    except Exception as exc:
-        LOGGER.error("Error selecting base columns for 2022 minimal frame.")
-        LOGGER.exception(exc)
-        raise
 
-    # compute OTHER_MALE and OTHER_FEMALE
-    try:
-        min_df_2022["OTHER_MALE"] = merged_pop_2022[required_other_m].sum(axis=1)
-        min_df_2022["OTHER_FEMALE"] = merged_pop_2022[required_other_f].sum(axis=1)
+        # compute OTHER_MALE and OTHER_FEMALE
+        min_df_2022["OTHER_MALE"] = merged_pop_2022.loc[
+            min_df_2022.index, required_other_m
+        ].sum(axis=1)
+        min_df_2022["OTHER_FEMALE"] = merged_pop_2022.loc[
+            min_df_2022.index, required_other_f
+        ].sum(axis=1)
+
         LOGGER.info("Computed OTHER_MALE and OTHER_FEMALE aggregates.")
+        LOGGER.info("Successfully created minimal 2022 dataset: %s", min_df_2022.shape)
+
+        return min_df_2022
+
     except Exception as exc:
-        LOGGER.error("Failed computing OTHER race-sex totals for 2022.")
-        LOGGER.exception(exc)
-        raise
-
-    LOGGER.info(
-        "Successfully created minimal 2022 population dataset with %d rows and %d columns.",
-        min_df_2022.shape[0],
-        min_df_2022.shape[1],
-    )
-
-    return min_df_2022
+        LOGGER.error("Failed during 2022 restructuring: %s", exc, exc_info=True)
+        return None
 
 
 # # Employment
-def get_industry(year: int) -> pd.DataFrame:
+def get_industry(year: int) -> pd.DataFrame | None:
     """Loads and cleans {year} industry labor data from labor_{year}.csv.
 
       - Drops unused columns
@@ -1180,43 +780,35 @@ def get_industry(year: int) -> pd.DataFrame:
         pd.DataFrame or None if loading fails.
     """
     file_path = RAW_DATA_DIR / f"labor_{year}.csv"
-    LOGGER.info(f"Loading {year} industry labor data from %s", file_path)
+    LOGGER.info("Loading %s industry labor data from %s", year, file_path)
 
     # load CSV
     try:
         ind_df = pd.read_csv(file_path)
-        LOGGER.info(f"Successfully read labor_{year}.csv with shape %s", ind_df.shape)
+        LOGGER.info("Successfully read labor_%s.csv with shape %s", year, ind_df.shape)
     except FileNotFoundError:
-        LOGGER.error(f"labor_{year}.csv not found at %s", file_path)
+        LOGGER.error("labor_%s.csv not found at %s", year, file_path)
         return None
     except Exception as exc:
-        LOGGER.error(f"Failed to read labor_{year}.csv.")
-        LOGGER.exception(exc)
+        LOGGER.error("Failed to read labor_%s.csv: %s", year, exc, exc_info=True)
         return None
 
     # drop unnecessary columns
     drop_cols = ["own_code", "industry_code", "qtr", "disclosure_code"]
     existing_drop_cols = [c for c in drop_cols if c in ind_df.columns]
-    missing = [c for c in drop_cols if c not in ind_df.columns]
-
-    if missing:
-        LOGGER.warning(
-            "Some expected columns not found and cannot be dropped: %s", missing
-        )
 
     try:
         ind_df = ind_df.drop(columns=existing_drop_cols)
         LOGGER.info(
             "Dropped columns %s. New shape: %s", existing_drop_cols, ind_df.shape
         )
-    except Exception as exc:
-        LOGGER.error(f"Failed to drop columns from labor_{year} dataframe.")
-        LOGGER.exception(exc)
+    except Exception:
+        LOGGER.error("Failed to drop columns from labor_%s.", year, exc_info=True)
         return None
 
     # pad area_fips to 5-digit strings
     if "area_fips" not in ind_df.columns:
-        LOGGER.error(f"Column 'area_fips' not found in labor_{year} data.")
+        LOGGER.error("Column 'area_fips' not found in labor_%s data.", year)
         return None
 
     try:
@@ -1226,11 +818,10 @@ def get_industry(year: int) -> pd.DataFrame:
         bad_codes = ind_df.loc[area_numeric.isna(), "area_fips"].unique()
         if len(bad_codes) > 0:
             LOGGER.warning(
-                "Dropping %d rows with non-numeric area_fips codes (e.g. %s) "
-                "from labor_%s data.",
+                "Dropping %d rows with non-numeric area_fips in %s data (e.g. %s)",
                 area_numeric.isna().sum(),
-                bad_codes[:5],
                 year,
+                bad_codes[:5],
             )
 
         ind_df = ind_df.loc[area_numeric.notna()].copy()
@@ -1238,54 +829,46 @@ def get_industry(year: int) -> pd.DataFrame:
             area_numeric[area_numeric.notna()].astype("Int64").astype(str).str.zfill(5)
         )
 
-        LOGGER.info(
-            "Padded area_fips to 5-digit strings after dropping non-numeric codes."
+        LOGGER.info("Padded area_fips to 5-digit strings.")
+        return ind_df
+
+    except Exception:
+        LOGGER.error(
+            "Failed to clean/format area_fips in labor_%s.", year, exc_info=True
         )
-    except Exception as exc:
-        LOGGER.error("Failed to clean/format area_fips in labor_%s.", year)
-        LOGGER.exception(exc)
         return None
 
-    LOGGER.info(f"Finished processing labor_{year}.csv. Final shape: %s", ind_df.shape)
-    return ind_df
 
-
-def combine_industries() -> pd.DataFrame:
-    """Combines 1980 and 2022 industry labor datasets
-
-    Loads, combines them, and logs each major step.
-    """
+def combine_industries() -> pd.DataFrame | None:
+    """Combines 1980 and 2022 industry labor datasets."""
     LOGGER.info("Combining 1980 and 2022 industry datasets...")
 
     ind_1980 = get_industry(1980)
     if ind_1980 is None:
         LOGGER.error("Failed to load 1980 industry data.")
         return None
-    LOGGER.info("Loaded 1980 industry dataset with %d rows.", len(ind_1980))
 
     ind_2022 = get_industry(2022)
     if ind_2022 is None:
         LOGGER.error("Failed to load 2022 industry data.")
         return None
-    LOGGER.info("Loaded 2022 industry dataset with %d rows.", len(ind_2022))
 
     try:
         all_ind = pd.concat([ind_1980, ind_2022], ignore_index=True)
         LOGGER.info(
-            "Successfully combined industry datasets. Final row count: %d",
-            len(all_ind),
+            "Successfully combined industry datasets. Final row count: %d", len(all_ind)
         )
-    except Exception as exc:
-        LOGGER.error("Failed to concatenate 1980 and 2022 industry datasets.")
-        LOGGER.exception(exc)
+        return all_ind
+    except Exception:
+        LOGGER.error(
+            "Failed to concatenate 1980 and 2022 industry datasets.", exc_info=True
+        )
         return None
-
-    return all_ind
 
 
 def merge_industry_with_msa(
     all_ind: pd.DataFrame, msa_county: pd.DataFrame, bfi_df: pd.DataFrame
-) -> pd.DataFrame:
+) -> pd.DataFrame | None:
     """Adds CBSA/MSA codes to industry data and filters to only the MSAs the BFI dataset.
 
     Keeps only rows where own_title == 'Total Covered'.
@@ -1329,14 +912,12 @@ def merge_industry_with_msa(
         ).drop(columns=["area_fips"])
 
         LOGGER.info(
-            "Merge 1 complete: industry ↔ MSA crosswalk. Rows before: %d → after: %d",
+            "Merge 1 (Ind <-> MSA Crosswalk) complete. Rows: %d -> %d",
             len(all_ind),
             len(msa_all_ind),
         )
-
-    except Exception as exc:
-        LOGGER.error("Failed merging industry data with MSA crosswalk")
-        LOGGER.exception(exc)
+    except Exception:
+        LOGGER.error("Failed merging industry data with MSA crosswalk", exc_info=True)
         return None
 
     # second merge: keep only MSAs in BFI dataset
@@ -1346,37 +927,39 @@ def merge_industry_with_msa(
             left_on="cbsacode",
             right_on="metro13",
             how="inner",
-        ).drop(columns=["cbsacode", "cbsatitle", "fips", "industry_title"])
+        ).drop(
+            columns=["cbsacode", "cbsatitle", "fips", "industry_title"], errors="ignore"
+        )
 
         LOGGER.info(
-            "Merge 2 complete: keeping only BFI MSAs. Rows before: %d → after: %d",
+            "Merge 2 (Ind <-> BFI) complete. Rows: %d -> %d",
             len(msa_all_ind),
             len(merged_all_ind),
         )
-    except Exception as exc:
-        LOGGER.error("Failed merging MSA industry data with BFI dataset")
-        LOGGER.exception(exc)
+    except Exception:
+        LOGGER.error("Failed merging MSA industry data with BFI dataset", exc_info=True)
         return None
 
     # keep only Total Covered
     try:
         before = len(merged_all_ind)
-        merged_all_ind = merged_all_ind.query('`own_title` == "Total Covered"')
-        LOGGER.info(
-            'Filtered rows where own_title == "Total Covered": %d → %d',
-            before,
-            len(merged_all_ind),
-        )
-    except Exception as exc:
-        LOGGER.error("Failed filtering to own_title == 'Total Covered'")
-        LOGGER.exception(exc)
+        if "own_title" in merged_all_ind.columns:
+            merged_all_ind = merged_all_ind.query('`own_title` == "Total Covered"')
+            LOGGER.info(
+                'Filtered rows where own_title == "Total Covered": %d -> %d',
+                before,
+                len(merged_all_ind),
+            )
+        else:
+            LOGGER.warning("'own_title' column missing. Skipping filter.")
+
+        return merged_all_ind
+    except Exception:
+        LOGGER.error("Failed filtering to own_title == 'Total Covered'", exc_info=True)
         return None
 
-    LOGGER.info("Successfully completed industry–MSA merging pipeline.")
-    return merged_all_ind
 
-
-def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> None:
+def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> dict:
     """Aggregates industry data by MSA and year, computes summary tables.
 
     Summary tables contain: (establishments, employment, wages, weekly wages),
@@ -1390,7 +973,9 @@ def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> None:
     """
     LOGGER.info("Starting MSA industry table construction...")
 
-    required_cols = {
+    msa_tables = {}
+
+    required_cols = [
         "metro13",
         "metro_title",
         "year",
@@ -1398,18 +983,16 @@ def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> None:
         "annual_avg_emplvl",
         "total_annual_wages",
         "annual_avg_wkly_wage",
-    }
+    ]
 
-    # validate columns
-    if not required_cols.issubset(merged_all_ind.columns):
-        missing = required_cols - set(merged_all_ind.columns)
+    # Check if cols exist
+    missing = [c for c in required_cols if c not in merged_all_ind.columns]
+    if missing:
         LOGGER.error("Missing required columns for aggregation: %s", missing)
         return {}
 
     # aggregate by MSA + year
     try:
-        LOGGER.info("Aggregating industry metrics by MSA and year...")
-
         agg_df = merged_all_ind.groupby(
             ["metro13", "metro_title", "year"], as_index=False
         ).agg(
@@ -1420,23 +1003,10 @@ def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> None:
                 "annual_avg_wkly_wage": "mean",
             }
         )
-
         LOGGER.info("Aggregation complete. Aggregated rows: %d", len(agg_df))
 
-    except Exception as exc:
-        LOGGER.error("Failed during MSA industry aggregation.")
-        LOGGER.exception(exc)
-        return {}
-
-    # build tables for each MSA
-    msa_tables = {}
-
-    try:
-        LOGGER.info("Constructing per-MSA summary tables...")
-
+        # build tables for each MSA
         for msa, sub in agg_df.groupby("metro_title"):
-            LOGGER.debug("Processing MSA: %s (rows: %d)", msa, len(sub))
-
             table = sub.set_index("year")[
                 [
                     "annual_avg_estabs_count",
@@ -1457,20 +1027,16 @@ def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> None:
             years = sorted(sub["year"].unique())
             if len(years) > 1:
                 y0, y1 = years[0], years[-1]
-                LOGGER.debug("Computing %% change for %s: %d → %d", msa, y0, y1)
-
                 table["% Change"] = (table[y1] - table[y0]) / table[y0] * 100
 
             msa_tables[msa] = table.round(2)
 
         LOGGER.info("Successfully built %d MSA tables.", len(msa_tables))
+        return msa_tables
 
-    except Exception as exc:
-        LOGGER.error("Error occurred while constructing MSA tables.")
-        LOGGER.exception(exc)
+    except Exception:
+        LOGGER.error("Error occurred while constructing MSA tables.", exc_info=True)
         return {}
-
-    return msa_tables
 
 
 def build_bfi_pop_labor(
@@ -1478,8 +1044,8 @@ def build_bfi_pop_labor(
     final_pop_1980: pd.DataFrame,
     min_df_2022: pd.DataFrame,
     merged_all_ind: pd.DataFrame,
-    output_path: Path | str | None = None,
-) -> pd.DataFrame:
+    output_path: Path | None = None,
+) -> pd.DataFrame | None:
     """Builds the combined BFI + population + labor dataset for 1980 and 2022.
 
     Steps:
@@ -1498,42 +1064,36 @@ def build_bfi_pop_labor(
     try:
         bfi_df1980 = bfi_df.copy()
         bfi_df1980["year"] = 1980
-
         bfi_df2022 = bfi_df.copy()
         bfi_df2022["year"] = 2022
 
         bfi_yrs = pd.concat([bfi_df1980, bfi_df2022], ignore_index=True)
-        LOGGER.info("Constructed BFI years dataframe with %d rows.", len(bfi_yrs))
-    except Exception as exc:
-        LOGGER.error("Failed while constructing BFI years dataframe.")
-        LOGGER.exception(exc)
+        LOGGER.info("Constructed BFI years dataframe. Rows: %d", len(bfi_yrs))
+    except Exception:
+        LOGGER.error("Failed while constructing BFI years dataframe.", exc_info=True)
         return None
 
     # 2. Combine population dataframes
     try:
         # Keep only AGEGRP 0 for 1980 total population
-        tot_final_pop_1980 = final_pop_1980.query("`AGEGRP` == 0").copy()
-        LOGGER.info(
-            "Filtered 1980 population to AGEGRP==0: %d rows.",
-            len(tot_final_pop_1980),
-        )
+        if "AGEGRP" in final_pop_1980.columns:
+            tot_final_pop_1980 = final_pop_1980.query("`AGEGRP` == 0").copy()
+        else:
+            tot_final_pop_1980 = final_pop_1980.copy()
+            LOGGER.warning("AGEGRP not found in 1980 pop, skipping filter.")
 
-        min_df_2022 = min_df_2022.copy()
-        min_df_2022["year"] = 2022
+        min_df_2022_copy = min_df_2022.copy()
+        min_df_2022_copy["year"] = 2022
 
         pop_df = pd.concat(
-            [tot_final_pop_1980, min_df_2022],
+            [tot_final_pop_1980, min_df_2022_copy],
             ignore_index=True,
             axis=0,
         ).drop(columns=["AGEGRP"], errors="ignore")
 
-        LOGGER.info(
-            "Combined 1980 and 2022 population data into pop_df with shape %s.",
-            pop_df.shape,
-        )
-    except Exception as exc:
-        LOGGER.error("Failed while combining population dataframes.")
-        LOGGER.exception(exc)
+        LOGGER.info("Combined 1980 and 2022 population data. Shape: %s", pop_df.shape)
+    except Exception:
+        LOGGER.error("Failed while combining population dataframes.", exc_info=True)
         return None
 
     # 3. Merge BFI with population and industry data
@@ -1544,189 +1104,136 @@ def build_bfi_pop_labor(
             on=["metro13", "year"],
             how="left",
         )
-
-        LOGGER.info(
-            "After population merge, shape is %s (rows: %d).",
-            new_bfi_df.shape,
-            len(new_bfi_df),
-        )
+        LOGGER.info("After population merge, rows: %d", len(new_bfi_df))
 
         LOGGER.info("Merging BFI+population with industry data...")
+
+        # Select available industry columns
+        ind_cols = [
+            "metro13",
+            "year",
+            "annual_avg_estabs_count",
+            "annual_avg_emplvl",
+            "total_annual_wages",
+            "annual_avg_wkly_wage",
+        ]
+        available_ind_cols = [c for c in ind_cols if c in merged_all_ind.columns]
+
         new_bfi_df = new_bfi_df.merge(
-            merged_all_ind[
-                [
-                    "metro13",
-                    "year",
-                    "annual_avg_estabs_count",
-                    "annual_avg_emplvl",
-                    "total_annual_wages",
-                    "annual_avg_wkly_wage",
-                ]
-            ],
+            merged_all_ind[available_ind_cols],
             on=["metro13", "year"],
             how="left",
         )
-        LOGGER.info(
-            "After industry merge, final shape is %s (rows: %d).",
-            new_bfi_df.shape,
-            len(new_bfi_df),
-        )
-    except KeyError as exc:
-        LOGGER.error("KeyError during merge: %s", exc)
-        LOGGER.error("Columns in bfi_yrs: %s", bfi_yrs.columns.tolist())
-        LOGGER.error("Columns in pop_df: %s", pop_df.columns.tolist())
-        LOGGER.error("Columns in merged_all_ind: %s", merged_all_ind.columns.tolist())
-        LOGGER.exception(exc)
-        return None
-    except Exception as exc:
-        LOGGER.error("Unexpected error during BFI/pop/industry merging.")
-        LOGGER.exception(exc)
-        return None
+        LOGGER.info("After industry merge, final rows: %d", len(new_bfi_df))
 
-    # rename columns to nicer names (if present)
-    try:
+        # Rename cols if they exist
         rename_map = {
             "race/sex indicator": "race/sex_indicator",
             "total population": "total_population",
         }
-        existing_rename_keys = [c for c in rename_map if c in new_bfi_df.columns]
-        if not existing_rename_keys:
-            LOGGER.warning(
-                "No matching columns found for renaming: %s",
-                list(rename_map.keys()),
-            )
+        new_bfi_df = new_bfi_df.rename(columns=rename_map)
 
-        new_bfi_df = new_bfi_df.rename(
-            columns={k: rename_map[k] for k in existing_rename_keys}
-        )
-        LOGGER.info("Renamed columns where applicable: %s", existing_rename_keys)
-    except Exception as exc:
-        LOGGER.error("Failed renaming columns in new_bfi_df.")
-        LOGGER.exception(exc)
-        return None
-
-    # optionally write to CSV
-    if output_path is not None:
-        try:
+        # Write to CSV
+        if output_path is not None:
             output_path = Path(output_path)
             new_bfi_df.to_csv(output_path, index=False)
             LOGGER.info("Wrote combined BFI dataset to %s", output_path)
-        except Exception as exc:
-            LOGGER.error(
-                "Failed writing combined BFI dataset to CSV at %s", output_path
-            )
-            LOGGER.exception(exc)
-            # still return the dataframe even if save fails
 
-    LOGGER.info("Successfully built combined BFI + population + labor dataset.")
-    return new_bfi_df
+        return new_bfi_df
+
+    except Exception:
+        LOGGER.error("Unexpected error during final BFI merge.", exc_info=True)
+        return None
 
 
-def main() -> dict[str, Any]:
-    """Combines all functions to produce merged_bfi.csv.
+def main() -> tuple[dict, dict, dict]:
+    """Combines all functions to produce merged_bfi.csv and return table dicts."""
+    LOGGER.info("--- Starting Main Data Pipeline ---")
 
-    merged_bfi.csv contains all columns and rows used from
-    1980 and 2022 population and industry datasets
-
-    Returns dictionaries for 1980 population proportions,
-    2022 population proportions, and 1980 vs 2022 industry changes
-    """
-    # ---- 1. (Optional) Download raw data if not already present ----
-    # Comment these out if you already have the CSVs in RAW_DATA_DIR.
+    # Download and pre-load necessary datasets
     get_census_pop()
     get_ubls_labor()
     get_uber_county_cbsa_crosswalk()
 
-    # ---- 2. Load and clean BFI ----
+    # 1. Load and clean BFI
     bfi_df = get_bfi()
     if bfi_df is None:
-        LOGGER.error("BFI data could not be loaded. Aborting.")
-        return
+        return {}, {}, {}
 
     bfi_df = clean_bfi(bfi_df)
     if bfi_df is None:
-        LOGGER.error("BFI data could not be cleaned. Aborting.")
-        return
+        return {}, {}, {}
 
-    # ---- 3. 1980 population pipeline ----
+    # 2. 1980 Pipeline
+    LOGGER.info("--- Processing 1980 Data ---")
     raw_pop_1980 = get_pop_1980()
     if raw_pop_1980 is None:
-        LOGGER.error("Raw 1980 population data could not be loaded. Aborting.")
-        return
+        return {}, {}, {}
 
     pop_1980 = clean_pop_1980(raw_pop_1980)
     if pop_1980 is None:
-        LOGGER.error("1980 population data could not be cleaned. Aborting.")
-        return
+        return {}, {}, {}
 
-    # CBSA crosswalk
     raw_msa_county = get_cbsa_county_crosswalk()
     if raw_msa_county is None:
-        LOGGER.error("CBSA crosswalk could not be loaded. Aborting.")
-        return
+        return {}, {}, {}
 
     msa_county = clean_cbsa_county_crosswalk(raw_msa_county)
     if msa_county is None:
-        LOGGER.error("CBSA crosswalk could not be cleaned. Aborting.")
-        return
+        return {}, {}, {}
 
-    # 1980 pop + crosswalk + BFI
     msa_pop_1980 = merge_pop_1980_with_cbsa(pop_1980, msa_county)
     if msa_pop_1980 is None:
-        LOGGER.error("Failed merging 1980 population with CBSA crosswalk. Aborting.")
-        return
+        return {}, {}, {}
 
     merged_pop_1980 = merge_pop_1980_with_bfi(msa_pop_1980, bfi_df)
     if merged_pop_1980 is None:
-        LOGGER.error("Failed merging 1980 population with BFI dataset. Aborting.")
-        return
+        return {}, {}, {}
 
     pop_1980_agg = aggregate_pop_1980(merged_pop_1980)
     if pop_1980_agg is None:
-        LOGGER.error("Failed aggregating 1980 population data. Aborting.")
-        return
+        return {}, {}, {}
 
     final_pop_1980 = transform_pop_1980_to_final(pop_1980_agg)
     if final_pop_1980 is None:
-        LOGGER.error("Failed transforming 1980 population data. Aborting.")
-        return
+        return {}, {}, {}
 
     final_pop_1980 = rename_pop_1980_columns(final_pop_1980)
     if final_pop_1980 is None:
-        LOGGER.error("Failed renaming 1980 population columns. Aborting.")
-        return
+        return {}, {}, {}
 
-    # ---- 4. 2022 population pipeline ----
+    # 3. 2022 Pipeline
+    LOGGER.info("--- Processing 2022 Data ---")
     pop_2022 = get_pop_2022()
     if pop_2022 is None:
-        LOGGER.error("2022 population data could not be loaded. Aborting.")
-        return
+        return {}, {}, {}
 
     pop_2022 = clean_pop_2022(pop_2022)
     if pop_2022 is None:
-        LOGGER.error("2022 population data could not be cleaned. Aborting.")
-        return
+        return {}, {}, {}
 
     merged_pop_2022 = merge_pop_2022_with_bfi(pop_2022, bfi_df)
     if merged_pop_2022 is None:
-        LOGGER.error("Failed merging 2022 population with BFI dataset. Aborting.")
-        return
+        return {}, {}, {}
 
     min_df_2022 = organize_pop_2022_minimal(merged_pop_2022)
+    if min_df_2022 is None:
+        return {}, {}, {}
 
-    # ---- 5. Industry pipeline ----
+    # 4. Industry Pipeline
+    LOGGER.info("--- Processing Industry Data ---")
     all_ind = combine_industries()
     if all_ind is None:
-        LOGGER.error("Industry datasets could not be combined. Aborting.")
-        return
+        return {}, {}, {}
 
     merged_all_ind = merge_industry_with_msa(all_ind, msa_county, bfi_df)
     if merged_all_ind is None:
-        LOGGER.error("Failed merging industry data with MSAs. Aborting.")
-        return
+        return {}, {}, {}
 
-    # ---- 6. Build final merged BFI dataset and write CSV ----
+    # 5. Final Output
+    LOGGER.info("--- Building Final Datasets ---")
     output_path = DATA_DIR / "merged_bfi.csv"
+
     new_bfi_df = build_bfi_pop_labor(
         bfi_df=bfi_df,
         final_pop_1980=final_pop_1980,
@@ -1736,18 +1243,21 @@ def main() -> dict[str, Any]:
     )
 
     if new_bfi_df is None:
-        LOGGER.error("Failed to build final BFI + pop + labor dataset.")
-        return
+        LOGGER.error("Pipeline failed at final step.")
+        return {}, {}, {}
 
-    LOGGER.info("Pipeline complete. Final dataset saved to %s", output_path)
-
-    # build tables
+    # Generate Tables
     pop_1980_table = make_msa_tables(final_pop_1980)
     pop_2022_table = make_msa_tables(min_df_2022)
     labor_table = build_msa_industry_tables(merged_all_ind)
 
+    LOGGER.info("Pipeline executed successfully.")
     return pop_1980_table, pop_2022_table, labor_table
 
 
 if __name__ == "__main__":
-    pop_1980_table, pop_2022_table, labor_table = main()
+    # Basic logging config if running this script directly
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+    main()
