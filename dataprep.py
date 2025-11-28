@@ -37,8 +37,7 @@ This part of the script:
 
 OUTPUT FILES:
 --------------
-  data/msa_gdp_percent_change.csv
-  data/merged_healthcare_jobs_with_gdp.csv
+  data/merged_bfi.csv
 
 DEPENDENCIES:
 -------------
@@ -54,8 +53,7 @@ import time
 import pandas as pd
 
 import gt_utilities.dataprep_utils as dp_utils
-
-# import requests
+import gt_utilities.get_census_bea_data as gcb
 from gt_utilities import find_project_root
 
 # ------------------------------------------------------
@@ -71,6 +69,7 @@ DATA_PATHS = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
 
 GDP_FILE = DATA_DIR / "msa_gdp_percent_change.csv"
 MERGED_FILE = DATA_DIR / "merged_healthcare_jobs_with_gdp.csv"
+MERGED_BFI = DATA_DIR / "merged_bfi.csv"
 
 # ------------------------------------------------------
 # Part 1: GeoJSON Shapefile Preparation
@@ -89,10 +88,11 @@ logger = logging.getLogger(__name__)
 print("\n" + "=" * 80)
 print(
     "Welcome to the Data Preparation Package! Your data preprocessing will commence in 5 seconds."
-    "\nAfter processing, the 'data' folder will be populated by three output files:"
+    "\nAfter processing, the 'data' folder will be populated by four output files:"
     "\n1) 'combined_US_regions_auto.geojson' (combined GeoJSON for MSAs and states for mapping)"
     "\n2) 'merged_healthcare_jobs_with_gdp.csv' (merged healthcare + GDP dataset)"
     "\n3) 'msa_gdp_percent_change.csv' (BEA GDP percent change data)"
+    "\n4) 'merged_bfi.csv' (merged dataset for population, GDP etc.)"
 )
 
 for i in range(40):
@@ -101,7 +101,7 @@ for i in range(40):
     time.sleep(0.125)
 
 if COMBINED_GEOJSON.exists():
-    print("\nGeoJSON already present. Skipping to Part 2... (1/2)")
+    print("\nGeoJSON already present. Skipping to Part 2... (1/3)")
 else:
     print("\nDownloading shapefiles...")
 
@@ -184,7 +184,7 @@ else:
             logger.info(f"Deleted file: {file}")
 
     print("\n" + "=" * 80)
-    print("Cleanup complete. Shapefile preprocessing complete! (1/2)")
+    print("Cleanup complete. Shapefile preprocessing complete! (1/3)")
     print("=" * 80)
 
 time.sleep(2)
@@ -204,12 +204,12 @@ BASE_URL = "https://apps.bea.gov/api/data"
 if GDP_FILE.exists() and MERGED_FILE.exists():
     print(
         "GDP and Merged datasets already exist. Skipping download and merge steps..."
-        "\nAll data preprocessing complete! (2/2)"
+        "\nGDP and Merged datasets preprocessing complete! (2/3)"
     )
 else:
     if __name__ == "__main__":
         print("\n" + "=" * 80)
-        print("🏙️  Running MSA Healthcare + GDP Data Preparation Pipeline")
+        print("Running MSA Healthcare + GDP Data Preparation Pipeline")
         print("=" * 80)
 
         gdp_df = dp_utils.download_bea_gdp_percent_change()
@@ -219,10 +219,30 @@ else:
             )
             if merged_df is not None:
                 print("\n" + "=" * 80)
-                print("All data preprocessing complete! (2/2)")
+                print("GDP and Merged dataset preprocessing complete! (2/3)")
                 print("=" * 80)
                 print(f"   ➜ Output: {MERGED_FILE.resolve()}")
             else:
                 print("⚠️ Merge step failed.")
         else:
             print("⚠️ GDP data download failed.")
+
+time.sleep(2)
+
+if MERGED_BFI.exists():
+    print("All data present! preprocessing complete! (3/3)")
+else:
+    print("\n" + "=" * 80)
+    print("Running Merged BFI Data Preparation Pipeline...")
+    print("=" * 80)
+
+    gcb.main()  # Runs entire BFI data prep pipeline
+
+    folder = gcb.RAW_DATA_DIR
+    if folder.exists() and folder.is_dir():
+        shutil.rmtree(folder)
+        logger.info("Deleted folder: %s", folder)
+
+    print("\n" + "=" * 80)
+    print("All data preprocessing complete! (3/3)")
+    print("=" * 80)
