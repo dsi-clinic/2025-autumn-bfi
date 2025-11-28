@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: 2025-autumn-bfi-app
+    ports:
+      - "8501:8501"
     volumes:
       - .:/project #/src
     environment:
@@ -13,4 +16,4 @@ services:
     # At least one of stdin_open or tty is required to make devcontainer work
     stdin_open: true
     tty: true
-    command: ["tail", "-f", "/dev/null"]
+    # command: ["tail", "-f", "/dev/null"]
