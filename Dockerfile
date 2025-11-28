@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     curl git \
     libspatialindex-dev \
     libgdal-dev \
+    libgeos-dev \
     gdal-bin \
     && rm -rf /var/lib/apt/lists/*
 # Create working directory
