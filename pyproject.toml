@@ -36,13 +36,13 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = {"" = "."}
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 
 [tool.distutils.egg_info]
-egg_base = "src"
+egg_base = "."
 
 [tool.ruff.lint]
 extend-select = [
