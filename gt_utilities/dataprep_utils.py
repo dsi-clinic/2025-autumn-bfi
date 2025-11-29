@@ -5,6 +5,7 @@ import json
 import logging
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import geopandas as gpd
 import pandas as pd
@@ -41,8 +42,8 @@ def download_and_extract_shapefile(
 
     # --- Download the ZIP ---
     try:
-        response = requests.get(url, timeout=timeout)
-        response.raise_for_status()  # raises if download failed
+        response: requests.Response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
     except requests.RequestException as exc:
         logger.error("Failed to download file from %s: %s", url, exc, exc_info=True)
         raise exc
@@ -79,23 +80,20 @@ def convert_shapefiles_to_geojson(
 
     epsg : int
         EPSG code for coordinate system (default = 4326/WGS84).
-
-    logger : logging.Logger or None
-        If provided, use logger.info(...) instead of print(...).
     """
     for key, d in shp_dirs.items():
         if not d.exists():
             logger.warning(f"Shapefile directory does not exist: {d!s}; skipping {key}")
             continue
 
-        shp_files = sorted(d.glob("*.shp"))
+        shp_files: list[Path] = sorted(d.glob("*.shp"))
         if not shp_files:
             logger.warning(f"No .shp found in {d!s}; skipping {key}")
             continue
 
         shp_path = shp_files[0]
         try:
-            gdf = gpd.read_file(shp_path)
+            gdf: gpd.GeoDataFrame = gpd.read_file(shp_path)
         except Exception as exc:
             logger.error(f"Failed to read shapefile {shp_path!s}: {exc}", exc_info=True)
             continue
@@ -104,6 +102,8 @@ def convert_shapefiles_to_geojson(
             gdf = gdf.to_crs(epsg=epsg)
 
         # keep common identifier/name columns (Hardcoded from US Census Bureau naming conventions)
+        id_cols: list[str]
+
         if key == "cbsa":
             id_cols = [c for c in ("CBSAFP", "GEOID", "NAME") if c in gdf.columns]
         else:
@@ -116,7 +116,7 @@ def convert_shapefiles_to_geojson(
             gdf[c] = gdf[c].astype(str)
 
         # write GeoJSON
-        out = out_paths[key]
+        out: Path = out_paths[key]
         try:
             gdf.to_file(out, driver="GeoJSON")
             logger.info(f"Wrote {len(gdf)} features to {out}")
@@ -160,27 +160,34 @@ def build_combined_geojson(
     # --- Load original GeoJSONs ---
     logger.info("Filtering, Clipping, and Processing GeoJSON features...")
     try:
-        gdf_msas = gpd.read_file(msa_path)
-        gdf_states = gpd.read_file(states_path)
+        gdf_msas: gpd.GeoDataFrame = gpd.read_file(msa_path)
+        gdf_states: gpd.GeoDataFrame = gpd.read_file(states_path)
     except Exception as exc:
         logger.error("Error reading input GeoJSONs: %s", exc, exc_info=True)
         raise exc
 
     # Filtering MSAs to those present in df_long (Hardcoded according to original Census Bureau files)
     msa_ids = df_long["metro13"].astype(str).unique()
-    gdf_msas_filtered = gdf_msas[gdf_msas["CBSAFP"].astype(str).isin(msa_ids)]
+    gdf_msas_filtered: gpd.GeoDataFrame = gdf_msas[
+        gdf_msas["CBSAFP"].astype(str).isin(msa_ids)
+    ]
     logger.info(f"Filtered to {len(gdf_msas_filtered)} MSAs with available data.")
 
     # --- Clip states by removing MSAs ---
-    gdf_states_clipped = gdf_states.overlay(gdf_msas_filtered, how="difference")
+    gdf_states_clipped: gpd.GeoDataFrame = gdf_states.overlay(
+        gdf_msas_filtered, how="difference"
+    )
     logger.info(f"Clipped states: {len(gdf_states_clipped)} features remain.")
 
     # --- Save clipped states ---
-    clipped_states_path = data_dir / clipped_states_filename
+    clipped_states_path: Path = data_dir / clipped_states_filename
     gdf_states_clipped.to_file(clipped_states_path, driver="GeoJSON")
     logger.info(f"Wrote clipped states GeoJSON to {clipped_states_path}")
 
     # --- Reload MSAs and clipped states as raw GeoJSON ---
+    msa_geo: dict[str, Any]
+    states_geo: dict[str, Any]
+
     with msa_path.open(encoding="utf-8") as f:
         msa_geo = json.load(f)
     with clipped_states_path.open(encoding="utf-8") as f:
@@ -195,14 +202,14 @@ def build_combined_geojson(
         feat["properties"]["region_id"] = feat["properties"]["STATEFP"].lstrip("0")
 
     # --- Combine into FeatureCollection ---
-    combined_geo = {
+    combined_geo: dict[str, Any] = {
         "type": "FeatureCollection",
         "features": msa_geo["features"] + states_geo["features"],
     }
     logger.info("Combined MSAs + States into a unified FeatureCollection.")
 
     # --- Write combined GeoJSON ---
-    combined_path = data_dir / combined_filename
+    combined_path: Path = data_dir / combined_filename
     with combined_path.open("w", encoding="utf-8") as f:
         json.dump(combined_geo, f, ensure_ascii=False, indent=2)
 
@@ -232,9 +239,9 @@ def download_bea_gdp_percent_change(
     Returns:
         DataFrame of GDP percent changes or None on failure.
     """
-    years = ",".join(str(y) for y in range(start_year, end_year + 1))
+    years: str = ",".join(str(y) for y in range(start_year, end_year + 1))
 
-    params = {
+    params: dict[str, str] = {
         "UserID": API_KEY,
         "method": "GetData",
         "datasetname": "Regional",
@@ -248,9 +255,9 @@ def download_bea_gdp_percent_change(
     logger.info(f"Requesting BEA GDP data ({start_year} - {end_year})...")
 
     try:
-        response = requests.get(BASE_URL, params=params, timeout=60)
+        response: requests.Response = requests.get(BASE_URL, params=params, timeout=60)
         response.raise_for_status()
-        data = response.json()
+        data: dict[str, Any] = response.json()
 
     except Exception as exc:
         logger.error("Error fetching BEA GDP data: %s", exc, exc_info=True)
@@ -258,8 +265,8 @@ def download_bea_gdp_percent_change(
 
     # --- Validate response ----------------------------------------------------
     try:
-        results = data["BEAAPI"]["Results"]
-        rows = results.get("Data", [])
+        results: dict[str, Any] = data["BEAAPI"]["Results"]
+        rows: list[dict[str, Any]] = results.get("Data", [])
     except Exception:
         logger.error("Unexpected BEA API response format.")
         return None
@@ -269,11 +276,11 @@ def download_bea_gdp_percent_change(
         return None
 
     # --- Convert to DataFrame -------------------------------------------------
-    rows_df = pd.DataFrame(rows)
+    rows_df: pd.DataFrame = pd.DataFrame(rows)
     rows_df["DataValue"] = pd.to_numeric(rows_df["DataValue"], errors="coerce")
 
     # --- Pivot from long → wide ----------------------------------------------
-    pivot_df = rows_df.pivot_table(
+    pivot_df: pd.DataFrame = rows_df.pivot_table(
         index=["GeoFips", "GeoName"],
         columns="TimePeriod",
         values="DataValue",
@@ -281,8 +288,8 @@ def download_bea_gdp_percent_change(
     ).reset_index()
 
     # --- Compute percent changes ---------------------------------------------
-    year_cols = sorted([c for c in pivot_df.columns if str(c).isdigit()])
-    base_df = pivot_df.copy()
+    year_cols: list[Any] = sorted([c for c in pivot_df.columns if str(c).isdigit()])
+    base_df: pd.DataFrame = pivot_df.copy()
 
     for i in range(1, len(year_cols)):
         curr, prev = year_cols[i], year_cols[i - 1]
@@ -323,8 +330,8 @@ def merge_healthcare_with_gdp(
         return None
 
     try:
-        rise = pd.read_csv(healthcare_path)
-        gdp = pd.read_csv(gdp_path)
+        rise: pd.DataFrame = pd.read_csv(healthcare_path)
+        gdp: pd.DataFrame = pd.read_csv(gdp_path)
 
         rise["metro13"] = pd.to_numeric(rise["metro13"], errors="coerce")
         gdp["GeoFips"] = pd.to_numeric(gdp["GeoFips"], errors="coerce")
@@ -342,7 +349,7 @@ def merge_healthcare_with_gdp(
             }
         )
 
-        merged = rise.merge(
+        merged: pd.DataFrame = rise.merge(
             gdp[
                 [
                     "GeoFips",

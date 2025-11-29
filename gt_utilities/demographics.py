@@ -128,9 +128,12 @@ def prepare_tables(min_df_2022: pd.DataFrame) -> dict[str, pd.DataFrame]:
             index=["Male", "Female"],
             columns=["White", "Black", "Other"],
         ).astype(float)
-        proportions = (proportions * 100).round(2)
 
-        msa_tables[msa] = proportions
+        try:
+            proportions = (proportions * 100).round(2)
+            msa_tables[msa] = proportions
+        except Exception as exc:
+            raise ValueError(f"Error processing MSA '{msa}': {exc}") from exc
 
     return msa_tables
 
@@ -162,10 +165,7 @@ def render_demographics_comparison(
         return
 
     # Section header
-    st.markdown(
-        "<h3>Population Distribution by Race and Sex (1980 vs 2022)</h3>",
-        unsafe_allow_html=True,
-    )
+    st.header("Population Distribution by Race and Sex (1980 vs 2022)")
     st.markdown(
         "<p class='center-caption'>Compare Male/Female racial shares side-by-side for the selected MSA.</p>",
         unsafe_allow_html=True,

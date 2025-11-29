@@ -48,28 +48,29 @@ import logging
 import shutil
 import sys
 import time
+from pathlib import Path
 
-# from pathlib import Path
 import pandas as pd
 
+import gt_utilities.census_bea_pipeline as pipeline
+import gt_utilities.config as config
 import gt_utilities.dataprep_utils as dp_utils
-import gt_utilities.get_census_bea_data as gcb
-from gt_utilities import find_project_root
 
 # ------------------------------------------------------
 # Configuration
 # ------------------------------------------------------
 
-PROJECT_ROOT = find_project_root()
-DATA_DIR = PROJECT_ROOT / "data"
+PROJECT_ROOT: Path = config.PROJECT_ROOT
+DATA_DIR: Path = config.DATA_DIR
+RAW_DATA_DIR: Path = config.RAW_DATA_DIR
 
-COMBINED_GEOJSON = DATA_DIR / "combined_US_regions_auto.geojson"
+COMBINED_GEOJSON: Path = config.COMBINED_GEOJSON
 
 DATA_PATHS = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
 
-GDP_FILE = DATA_DIR / "msa_gdp_percent_change.csv"
-MERGED_FILE = DATA_DIR / "merged_healthcare_jobs_with_gdp.csv"
-MERGED_BFI = DATA_DIR / "merged_bfi.csv"
+GDP_FILE = config.GDP_FILE
+MERGED_FILE = config.GDP_PATHS
+MERGED_BFI = config.MERGED_PATHS
 
 # ------------------------------------------------------
 # Part 1: GeoJSON Shapefile Preparation
@@ -77,6 +78,9 @@ MERGED_BFI = DATA_DIR / "merged_bfi.csv"
 
 if DATA_DIR.exists() is False:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+if RAW_DATA_DIR.exists() is False:
+    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Logging Configuration
 logging.basicConfig(
@@ -236,9 +240,9 @@ else:
     print("Running Merged BFI Data Preparation Pipeline...")
     print("=" * 80)
 
-    gcb.main()  # Runs entire BFI data prep pipeline
+    pipeline.run_full_pipeline()  # Runs entire BFI data prep pipeline
 
-    folder = gcb.RAW_DATA_DIR
+    folder = RAW_DATA_DIR
     if folder.exists() and folder.is_dir():
         shutil.rmtree(folder)
         logger.info("Deleted folder: %s", folder)
