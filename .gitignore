@@ -138,3 +138,6 @@ venv.bak/
 
 # data files
 *.avro
+
+# Meeting Notes
+/meetings

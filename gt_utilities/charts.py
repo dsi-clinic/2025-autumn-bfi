@@ -12,11 +12,11 @@ from sklearn.linear_model import LinearRegression
 alt.data_transformers.disable_max_rows()
 
 
-def compute_regression_stats(df: pd.DataFrame, x: str, y: str) -> str:
+def compute_regression_stats(datadf: pd.DataFrame, x: str, y: str) -> str:
     """Compute and format regression statistics.
 
     Args:
-        df: DataFrame containing the data
+        datadf: DataFrame containing the data to be analyzed
         x: Column name for x-axis variable
         y: Column name for y-axis variable
 
@@ -25,8 +25,8 @@ def compute_regression_stats(df: pd.DataFrame, x: str, y: str) -> str:
     """
     try:
         model = LinearRegression()
-        x_vals = df[[x]].dropna()
-        y_vals = df[y].dropna()
+        x_vals = datadf[[x]].dropna()
+        y_vals = datadf[y].dropna()
 
         # Align indices
         y_aligned = y_vals.loc[x_vals.index]
@@ -45,7 +45,7 @@ def compute_regression_stats(df: pd.DataFrame, x: str, y: str) -> str:
 
 
 def make_colored_reg_chart(
-    df: pd.DataFrame,
+    datadf: pd.DataFrame,
     x: str,
     y: str,
     x_label: str,
@@ -55,7 +55,7 @@ def make_colored_reg_chart(
     """Create an Altair scatterplot with regression line and tooltip + stats.
 
     Args:
-        df: DataFrame containing the data
+        datadf: DataFrame containing the data to be visualized
         x: Column name for x-axis
         y: Column name for y-axis
         x_label: Display label for x-axis
@@ -67,7 +67,7 @@ def make_colored_reg_chart(
     """
     logging.info(f"Building chart: {y_label} vs {x_label}")
 
-    base = alt.Chart(df).encode(
+    base = alt.Chart(datadf).encode(
         x=alt.X(x, title=x_label, axis=alt.Axis(labelFontSize=11, titleFontSize=12)),
         y=alt.Y(y, title=y_label, axis=alt.Axis(labelFontSize=11, titleFontSize=12)),
     )
@@ -86,7 +86,7 @@ def make_colored_reg_chart(
     )
 
     # Regression stats text
-    stats_label = compute_regression_stats(df, x, y)
+    stats_label = compute_regression_stats(datadf, x, y)
     stats_text = (
         alt.Chart(pd.DataFrame({"text": [stats_label]}))
         .mark_text(align="left", x=10, y=15, fontSize=10, color="black")
@@ -101,12 +101,12 @@ def make_colored_reg_chart(
 
 
 def make_scatter_chart(
-    data: pd.DataFrame, x: str, y: str, x_label: str, y_label: str, color: str
+    datadf: pd.DataFrame, x: str, y: str, x_label: str, y_label: str, color: str
 ) -> alt.Chart:
     """Create a scatter plot with regression line (simplified for GDP charts).
 
     Args:
-        data: DataFrame containing the data
+        datadf: DataFrame containing the data
         x: Column name for x-axis
         y: Column name for y-axis
         x_label: Display label for x-axis
@@ -116,7 +116,7 @@ def make_scatter_chart(
     Returns:
         Configured Altair chart
     """
-    base = alt.Chart(data).encode(
+    base = alt.Chart(datadf).encode(
         x=alt.X(x, title=x_label, axis=alt.Axis(labelFontSize=11, titleFontSize=12)),
         y=alt.Y(y, title=y_label, axis=alt.Axis(labelFontSize=11, titleFontSize=12)),
     )
