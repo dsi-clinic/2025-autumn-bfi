@@ -41,7 +41,7 @@ df_selected_variables = map_utils.prepare_display_data(
 # -------------------------
 fig_map = map_utils.generate_choropleth_map(df_selected_variables, combined_geo, pretty)
 
-st.plotly_chart(fig_map, use_container_width=True, config={"scrollZoom": True})
+st.plotly_chart(fig_map, width="stretch", config={"scrollZoom": True})
 
 # -------------------------
 # Create complementary bar chart to the choropleth
@@ -51,7 +51,7 @@ fig_bar = map_utils.generate_bar_chart(
     pretty,
 )
 
-st.plotly_chart(fig_bar, use_container_width=True)
+st.plotly_chart(fig_bar, width="stretch")
 
 # -------------------------
 # Create user-generated scatterplot for selected variables
@@ -76,7 +76,7 @@ if x_var and y_var:
         x_var,
         y_var,
     )
-    st.plotly_chart(fig_scatter, use_container_width=True)
+    st.plotly_chart(fig_scatter, width="stretch")
 else:
     st.info("Select two variables above to view a regression scatterplot.")
 
