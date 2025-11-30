@@ -82,19 +82,19 @@ charts = [make_colored_reg_chart(datasets_df, *r) for r in config.RELATIONSHIPS]
 # Render in a 2x3 grid
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.altair_chart(charts[0], use_container_width=True)
+    st.altair_chart(charts[0], width="stretch")
 with col2:
-    st.altair_chart(charts[1], use_container_width=True)
+    st.altair_chart(charts[1], width="stretch")
 with col3:
-    st.altair_chart(charts[2], use_container_width=True)
+    st.altair_chart(charts[2], width="stretch")
 
 col4, col5, col6 = st.columns(3)
 with col4:
-    st.altair_chart(charts[3], use_container_width=True)
+    st.altair_chart(charts[3], width="stretch")
 with col5:
-    st.altair_chart(charts[4], use_container_width=True)
+    st.altair_chart(charts[4], width="stretch")
 with col6:
-    st.altair_chart(charts[5], use_container_width=True)
+    st.altair_chart(charts[5], width="stretch")
 
 # -------------------------
 # GDP Relationships Section
@@ -114,18 +114,18 @@ if df_gdp is not None:
     # First row: 3 charts
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.altair_chart(gdp_charts[0], use_container_width=True)
+        st.altair_chart(gdp_charts[0], width="stretch")
     with col2:
-        st.altair_chart(gdp_charts[1], use_container_width=True)
+        st.altair_chart(gdp_charts[1], width="stretch")
     with col3:
-        st.altair_chart(gdp_charts[2], use_container_width=True)
+        st.altair_chart(gdp_charts[2], width="stretch")
 
     # Second row: 2 charts
     col4, col5 = st.columns(2)
     with col4:
-        st.altair_chart(gdp_charts[3], use_container_width=True)
+        st.altair_chart(gdp_charts[3], width="stretch")
     with col5:
-        st.altair_chart(gdp_charts[4], use_container_width=True)
+        st.altair_chart(gdp_charts[4], width="stretch")
 
     st.markdown("<hr>", unsafe_allow_html=True)
 else:
