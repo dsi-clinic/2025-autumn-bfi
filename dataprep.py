@@ -41,7 +41,7 @@ OUTPUT FILES:
 
 DEPENDENCIES:
 -------------
-  pip install time io json zipfile pathlib pandas requests geopandas shutil pathlib
+  pip install time zipfile pathlib pandas requests geopandas shutil pathlib rich
 """
 
 import logging
@@ -51,202 +51,186 @@ import time
 from pathlib import Path
 
 import pandas as pd
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.progress import track
 
 import gt_utilities.census_bea_pipeline as pipeline
 import gt_utilities.config as config
 import gt_utilities.dataprep_utils as dp_utils
 
 # ------------------------------------------------------
-# Configuration
+# Configuration & Setup
 # ------------------------------------------------------
+# 1. Initialize Rich Console for pretty titles/rules
+console = Console()
 
+# 2. Configure Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(rich_tracebacks=True, markup=True)],
+)
+logger = logging.getLogger("preprocessing")
+
+# 3. Path Setup
 PROJECT_ROOT: Path = config.PROJECT_ROOT
 DATA_DIR: Path = config.DATA_DIR
 RAW_DATA_DIR: Path = config.RAW_DATA_DIR
-
 COMBINED_GEOJSON: Path = config.COMBINED_GEOJSON
-
-DATA_PATHS = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
-
+DATA_PATHS = config.DATA_PATHS
 GDP_FILE = config.GDP_FILE
 MERGED_FILE = config.GDP_PATHS
 MERGED_BFI = config.MERGED_PATHS
 
-# ------------------------------------------------------
-# Part 1: GeoJSON Shapefile Preparation
-# ------------------------------------------------------
-
-if DATA_DIR.exists() is False:
+if not DATA_DIR.exists():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-if RAW_DATA_DIR.exists() is False:
+if not RAW_DATA_DIR.exists():
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# Logging Configuration
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
 
-logger = logging.getLogger(__name__)
-
-print("\n" + "=" * 80)
-print(
-    "Welcome to the Data Preparation Package! Your data preprocessing will commence in 5 seconds."
-    "\nAfter processing, the 'data' folder will be populated by four output files:"
-    "\n1) 'combined_US_regions_auto.geojson' (combined GeoJSON for MSAs and states for mapping)"
-    "\n2) 'merged_healthcare_jobs_with_gdp.csv' (merged healthcare + GDP dataset)"
-    "\n3) 'msa_gdp_percent_change.csv' (BEA GDP percent change data)"
-    "\n4) 'merged_bfi.csv' (merged dataset for population, GDP etc.)"
-)
-
-for i in range(40):
-    sys.stdout.write("\r{}>".format("==" * i))
-    sys.stdout.flush()
-    time.sleep(0.125)
-
-if COMBINED_GEOJSON.exists():
-    print("\nGeoJSON already present. Skipping to Part 2... (1/3)")
-else:
-    print("\nDownloading shapefiles...")
-
-    extract_path_cbsa = DATA_DIR / "cb_2021_us_cbsa_5m"
-    extract_path_state = DATA_DIR / "cb_2021_us_state_5m"
-
-    dp_utils.download_and_extract_shapefile(
-        url="https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_cbsa_5m.zip",
-        extract_dir=extract_path_cbsa,
+def run_preprocessing() -> None:
+    """Runs the full data preprocessing pipeline in three parts."""
+    console.rule("[bold blue]Data Preparation Package")
+    console.print(
+        "Your data preprocessing will commence shortly.\n"
+        "After processing, the [bold cyan]'data'[/] folder will be populated by four output files."
+        "\n1) 'combined_US_regions_auto.geojson' (combined GeoJSON for MSAs and states for mapping)"
+        "\n2) 'merged_healthcare_jobs_with_gdp.csv' (merged healthcare + GDP dataset)"
+        "\n3) 'msa_gdp_percent_change.csv' (BEA GDP percent change data)"
+        "\n4) 'merged_bfi.csv' (merged dataset for population, GDP etc.)"
     )
 
-    time.sleep(2)
+    for _ in track(range(40), description="Initializing pipeline..."):
+        time.sleep(0.125)
 
-    dp_utils.download_and_extract_shapefile(
-        url="https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_state_5m.zip",
-        extract_dir=extract_path_state,
-    )
+    # ------------------------------------------------------
+    # Part 1: GeoJSON Shapefile Preparation
+    # ------------------------------------------------------
+    console.rule("[bold green]Part 1: GeoJSON Shapefile Preparation")
 
-    print("Downloaded and extracted State shapefiles.")
+    if COMBINED_GEOJSON.exists():
+        logger.warning(
+            f"GeoJSON already present at {COMBINED_GEOJSON.name}. Skipping Part 1."
+        )
+    else:
+        logger.info("Downloading shapefiles...")
+        extract_path_cbsa = DATA_DIR / "cb_2021_us_cbsa_5m"
+        extract_path_state = DATA_DIR / "cb_2021_us_state_5m"
 
-    # Data preprocessing: Loading BFI healthcare dataset and reshaping to long format
+        dp_utils.download_and_extract_shapefile(
+            url="https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_cbsa_5m.zip",
+            extract_dir=extract_path_cbsa,
+        )
+        dp_utils.download_and_extract_shapefile(
+            url="https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_state_5m.zip",
+            extract_dir=extract_path_state,
+        )
+        logger.info("Downloaded and extracted State shapefiles.")
 
-    DATA_PATH = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
-    datadf = pd.read_csv(DATA_PATH)
-    indicator_cols = ["metro13", "metro_title"]
-    value_cols = [c for c in datadf.columns if c not in indicator_cols]
-    df_long = datadf.melt(
-        id_vars=indicator_cols,
-        value_vars=value_cols,
-        var_name="indicator",
-        value_name="value",
-    )
+        # Data preprocessing
+        logger.info("Reshaping BFI healthcare dataset to long format...")
+        datadf = pd.read_csv(DATA_PATHS)
+        indicator_cols = ["metro13", "metro_title"]
+        value_cols = [c for c in datadf.columns if c not in indicator_cols]
+        df_long = datadf.melt(
+            id_vars=indicator_cols,
+            value_vars=value_cols,
+            var_name="indicator",
+            value_name="value",
+        )
 
-    # Convert extracted shapefiles to GeoJSON
+        # Convert shapefiles
+        logger.info("Processing shapefiles to GeoJSON format...")
+        shp_dirs = {"cbsa": extract_path_cbsa, "states": extract_path_state}
+        msa_path = DATA_DIR / "2021_US_CBSA_auto.geojson"
+        states_path = DATA_DIR / "2021_US_States_auto.geojson"
+        out_paths = {"cbsa": msa_path, "states": states_path}
 
-    print("Processing shapefiles to GeoJSON format...")
+        dp_utils.convert_shapefiles_to_geojson(shp_dirs, out_paths)
 
-    # Packaging shapefile directories into dictionary for processing
-    shp_dirs = {
-        "cbsa": extract_path_cbsa,
-        "states": extract_path_state,
-    }
+        # Build Combined
+        dp_utils.build_combined_geojson(
+            msa_path=msa_path,
+            states_path=states_path,
+            df_long=df_long,
+            data_dir=DATA_DIR,
+        )
 
-    msa_path = DATA_DIR / "2021_US_CBSA_auto.geojson"
-    states_path = DATA_DIR / "2021_US_States_auto.geojson"
+        # Cleanup
+        logger.info("Cleaning up intermediate files...")
+        folders_to_delete = [extract_path_cbsa, extract_path_state]
+        files_to_delete = [msa_path, states_path]
 
-    # Defining output paths for GeoJSON files
-    out_paths = {
-        "cbsa": msa_path,
-        "states": states_path,
-    }
+        for folder in folders_to_delete:
+            if folder.exists() and folder.is_dir():
+                shutil.rmtree(folder)
+                logger.info(f"Deleted folder: {folder.name}")
 
-    dp_utils.convert_shapefiles_to_geojson(shp_dirs, out_paths)
+        for file in files_to_delete:
+            if file.exists() and file.is_file():
+                file.unlink()
+                logger.info(f"Deleted file: {file.name}")
 
-    # Filtering, Clipping, and Processing GeoJSON features
+        logger.info("[bold green]Part 1 Complete![/]", extra={"markup": True})
 
-    dp_utils.build_combined_geojson(
-        msa_path=msa_path, states_path=states_path, df_long=df_long, data_dir=DATA_DIR
-    )
+    time.sleep(1)
 
-    # Cleanup intermediate files
-    logger.info("Cleaning up intermediate files...")
+    # ------------------------------------------------------
+    # Part 2: MSA Healthcare + GDP Data Merger
+    # ------------------------------------------------------
+    console.rule("[bold green]Part 2: MSA Healthcare + GDP Data Merger")
 
-    # FOLDERS TO DELETE
-    folders_to_delete = [extract_path_cbsa, extract_path_state]
-
-    # FILES TO DELETE
-    files_to_delete = [msa_path, states_path]
-
-    # Delete folders
-    for folder in folders_to_delete:
-        if folder.exists() and folder.is_dir():
-            shutil.rmtree(folder)
-            logger.info(f"Deleted folder: {folder}")
-
-    # Delete files
-    for file in files_to_delete:
-        if file.exists() and file.is_file():
-            file.unlink()
-            logger.info(f"Deleted file: {file}")
-
-    print("\n" + "=" * 80)
-    print("Cleanup complete. Shapefile preprocessing complete! (1/3)")
-    print("=" * 80)
-
-time.sleep(2)
-
-# ------------------------------------------------------
-# Part 2: MSA Healthcare + GDP Data Merger
-# ------------------------------------------------------
-# Configuration
-# ------------------------------------------------------
-API_KEY = "73110DFA-D36D-4A7C-99C7-183B704E1596"
-BASE_URL = "https://apps.bea.gov/api/data"
-
-# ------------------------------------------------------
-# Run Entire Pipeline
-# ------------------------------------------------------
-
-if GDP_FILE.exists() and MERGED_FILE.exists():
-    print(
-        "GDP and Merged datasets already exist. Skipping download and merge steps..."
-        "\nGDP and Merged datasets preprocessing complete! (2/3)"
-    )
-else:
-    if __name__ == "__main__":
-        print("\n" + "=" * 80)
-        print("Running MSA Healthcare + GDP Data Preparation Pipeline")
-        print("=" * 80)
+    if GDP_FILE.exists() and MERGED_FILE.exists():
+        logger.warning("GDP and Merged datasets already exist. Skipping Part 2.")
+    else:
+        logger.info("Running MSA Healthcare + GDP Pipeline...")
 
         gdp_df = dp_utils.download_bea_gdp_percent_change()
+
         if gdp_df is not None:
             merged_df = dp_utils.merge_healthcare_with_gdp(
                 DATA_PATHS, GDP_FILE, MERGED_FILE
             )
             if merged_df is not None:
-                print("\n" + "=" * 80)
-                print("GDP and Merged dataset preprocessing complete! (2/3)")
-                print("=" * 80)
-                print(f"   ➜ Output: {MERGED_FILE.resolve()}")
+                logger.info(f"Output saved to: {MERGED_FILE.resolve()}")
+                logger.info("[bold green]Part 2 Complete![/]", extra={"markup": True})
             else:
-                print("⚠️ Merge step failed.")
+                logger.error("Merge step failed.")
         else:
-            print("⚠️ GDP data download failed.")
+            logger.error("GDP data download failed.")
 
-time.sleep(2)
+    time.sleep(1)
 
-if MERGED_BFI.exists():
-    print("All data present! preprocessing complete! (3/3)")
-else:
-    print("\n" + "=" * 80)
-    print("Running Merged BFI Data Preparation Pipeline...")
-    print("=" * 80)
+    # ------------------------------------------------------
+    # Part 3: Other Data Prep
+    # ------------------------------------------------------
+    console.rule("[bold green]Part 3: Merged BFI Data Preparation")
 
-    pipeline.run_full_pipeline()  # Runs entire BFI data prep pipeline
+    if MERGED_BFI.exists():
+        logger.warning("Merged BFI data already present. Skipping Part 3.")
+    else:
+        logger.info("Running BFI Pipeline...")
 
-    folder = RAW_DATA_DIR
-    if folder.exists() and folder.is_dir():
-        shutil.rmtree(folder)
-        logger.info("Deleted folder: %s", folder)
+        # Runs entire BFI data prep pipeline
+        pipeline.run_full_pipeline()
 
-    print("\n" + "=" * 80)
-    print("All data preprocessing complete! (3/3)")
-    print("=" * 80)
+        folder = RAW_DATA_DIR
+        if folder.exists() and folder.is_dir():
+            shutil.rmtree(folder)
+            logger.info(f"Deleted folder: {folder.name}")
+
+        logger.info("[bold green]Part 3 Complete![/]", extra={"markup": True})
+
+    # Final Success Message
+    console.rule("[bold blue]Pipeline Finished")
+    console.print("[bold green]All data preprocessing tasks successfully completed![/]")
+
+
+if __name__ == "__main__":
+    try:
+        run_preprocessing()
+    except Exception:
+        logger.exception("An unhandled exception occurred during preprocessing")
+        sys.exit(1)
