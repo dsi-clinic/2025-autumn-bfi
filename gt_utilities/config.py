@@ -192,12 +192,15 @@ CUSTOM_CSS: str = """
 # Demographics Categories
 # -------------------------
 DEMOGRAPHIC_CATEGORIES: list[str] = [
-    "White male",
-    "Black male",
-    "Other races male",
-    "White female",
-    "Black female",
-    "Other races female",
+    "TOT_POP",
+    "TOT_MALE",
+    "TOT_FEMALE",
+    "white male",
+    "black male",
+    "other races male",
+    "white female",
+    "black female",
+    "other races female",
 ]
 
 DEMOGRAPHIC_AGG_COLS: list[str] = [

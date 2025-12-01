@@ -87,7 +87,7 @@ def load_all_datasets(
     datasets["merged"] = try_read_csv(
         merged_paths, "merged BFI dataset and 1980/2022 population and labor force data"
     )
-    # datasets["min_2022"] = try_read_csv(merged_paths, "min_df_2022 (2022 population)")
+
     datasets["gdp"] = try_read_csv(gdp_paths, "GDP dataset")
 
     return datasets
