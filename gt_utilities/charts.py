@@ -190,50 +190,54 @@ def create_demographics_comparison_chart(
 
     return bar_chart
 
+
 # ------------------------------------------------------
 # Additional Chart 1: Top MSAs by Healthcare Employment Share
 # ------------------------------------------------------
 
+
 def plot_top_msa_healthcare_share(df: pd.DataFrame, top_n: int = 10) -> alt.Chart:
-    """
-    Bar chart of top MSAs by healthcare employment share (2022).
-    """
-    top_df = df.nlargest(top_n, 'healthcare_share_prime2022').copy()
+    """Bar chart of top MSAs by healthcare employment share (2022)."""
+    top_df = df.nlargest(top_n, "healthcare_share_prime2022").copy()
 
     chart = (
         alt.Chart(top_df)
         .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
         .encode(
             y=alt.Y(
-                'metro_title:N',
-                sort='-x',
-                axis=alt.Axis(labelFontSize=13, labelLimit=350, title=None)
+                "metro_title:N",
+                sort="-x",
+                axis=alt.Axis(labelFontSize=13, labelLimit=350, title=None),
             ),
             x=alt.X(
-                'healthcare_share_prime2022:Q',
-                title='Healthcare Employment Share (2022)',
-                axis=alt.Axis(format='.0%', labelFontSize=12, titleFontSize=14, grid=False)
+                "healthcare_share_prime2022:Q",
+                title="Healthcare Employment Share (2022)",
+                axis=alt.Axis(
+                    format=".0%", labelFontSize=12, titleFontSize=14, grid=False
+                ),
             ),
             color=alt.Color(
-                'healthcare_share_prime2022:Q',
-                scale=alt.Scale(range=['#ecd2c2', '#a05252', '#800000']),
-                legend=None
+                "healthcare_share_prime2022:Q",
+                scale=alt.Scale(range=["#ecd2c2", "#a05252", "#800000"]),
+                legend=None,
             ),
-            tooltip=['metro_title', alt.Tooltip('healthcare_share_prime2022:Q', format='.2%')]
+            tooltip=[
+                "metro_title",
+                alt.Tooltip("healthcare_share_prime2022:Q", format=".2%"),
+            ],
         )
         .properties(
-            title=f'Top {top_n} MSAs by Healthcare Employment Share (2022)',
+            title=f"Top {top_n} MSAs by Healthcare Employment Share (2022)",
             width=700,
-            height=450
+            height=450,
         )
-        .configure_title(fontSize=18, font='Lato', anchor='start')
-        .configure_axis(labelFont='Lato', titleFont='Lato', grid=False)
+        .configure_title(fontSize=18, font="Lato", anchor="start")
+        .configure_axis(labelFont="Lato", titleFont="Lato", grid=False)
         .configure_view(strokeWidth=0)
     )
 
     logging.info(f"Generated bar chart for top {top_n} MSAs.")
     return chart
-
 
 
 # ------------------------------------------------------
@@ -249,10 +253,11 @@ ZERO_BASE_COL = "zero"
 CHART_WIDTH = 720
 CHART_HEIGHT = 500
 
-def plot_lollipop_healthcare_growth(df: pd.DataFrame, top_n: int = TOP_N_MSA) -> alt.Chart:
-    """
-    Lollipop chart: top MSAs with the largest increase in HC employment share (1980–2022).
-    """
+
+def plot_lollipop_healthcare_growth(
+    df: pd.DataFrame, top_n: int = TOP_N_MSA
+) -> alt.Chart:
+    """Lollipop chart: top MSAs with the largest increase in HC employment share (1980–2022)."""
     top_df = df.nlargest(top_n, DATA_COLUMN).copy()
     top_df[ZERO_BASE_COL] = 0
 
@@ -260,24 +265,23 @@ def plot_lollipop_healthcare_growth(df: pd.DataFrame, top_n: int = TOP_N_MSA) ->
         x=alt.X(
             f"{LABEL_COLUMN}:N",
             sort="-y",
-            axis=alt.Axis(labelAngle=-30, labelFontSize=11, labelLimit=250, title=None)
+            axis=alt.Axis(labelAngle=-30, labelFontSize=11, labelLimit=250, title=None),
         ),
         y=alt.Y(
             f"{DATA_COLUMN}:Q",
             title="Increase in Healthcare Employment Share (1980–2022)",
-            axis=alt.Axis(format=".1%", labelFontSize=11, titleFontSize=13, grid=False)
-        )
+            axis=alt.Axis(format=".1%", labelFontSize=11, titleFontSize=13, grid=False),
+        ),
     )
 
     stems = base.mark_rule(stroke=COLOR_STEM, strokeWidth=2).encode(
-        y=f"{ZERO_BASE_COL}:Q",
-        y2=f"{DATA_COLUMN}:Q"
+        y=f"{ZERO_BASE_COL}:Q", y2=f"{DATA_COLUMN}:Q"
     )
 
     dots = base.mark_circle(size=130, color=COLOR_DOT).encode(
         tooltip=[
             alt.Tooltip(f"{LABEL_COLUMN}:N", title="MSA"),
-            alt.Tooltip(f"{DATA_COLUMN}:Q", title="Change (%)", format=".2%")
+            alt.Tooltip(f"{DATA_COLUMN}:Q", title="Change (%)", format=".2%"),
         ]
     )
 
@@ -286,7 +290,7 @@ def plot_lollipop_healthcare_growth(df: pd.DataFrame, top_n: int = TOP_N_MSA) ->
         .properties(
             title=f"Top {top_n} MSAs with the Largest Increase in Healthcare Employment Share (1980–2022)",
             width=CHART_WIDTH,
-            height=CHART_HEIGHT
+            height=CHART_HEIGHT,
         )
         .configure_title(fontSize=18, font="Lato", anchor="start")
         .configure_axis(labelFont="Lato", titleFont="Lato", grid=False)
@@ -295,4 +299,3 @@ def plot_lollipop_healthcare_growth(df: pd.DataFrame, top_n: int = TOP_N_MSA) ->
 
     logging.info("Lollipop chart created successfully.")
     return chart
-

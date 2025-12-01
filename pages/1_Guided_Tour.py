@@ -1,11 +1,17 @@
 """Guided Tour - Curated Charts and Maps"""
 
+import logging
+
 import streamlit as st
 
 import gt_utilities.config as config
-from gt_utilities.charts import make_colored_reg_chart, make_scatter_chart, plot_top_msa_healthcare_share, plot_lollipop_healthcare_growth
+from gt_utilities.charts import (
+    make_colored_reg_chart,
+    make_scatter_chart,
+    plot_lollipop_healthcare_growth,
+    plot_top_msa_healthcare_share,
+)
 from gt_utilities.loaders import load_all_datasets
-from gt_utilities.demographics import render_demographics_comparison
 
 st.set_page_config(layout="wide")
 if st.button("Go back Home"):
@@ -133,42 +139,29 @@ else:
     st.warning("GDP dataset not found. Supplementary GDP charts unavailable.")
 
 # ==============================================================
-# Additional Supplementary Charts 
+# Additional Supplementary Charts
 # ==============================================================
 
 st.markdown("<h3>Additional Supplementary Charts</h3>", unsafe_allow_html=True)
-st.markdown("<p class='center-caption'>Additional visual summaries of healthcare employment levels and changes across MSAs.</p>", unsafe_allow_html=True)
+st.markdown(
+    "<p class='center-caption'>Additional visual summaries of healthcare employment levels and changes across MSAs.</p>",
+    unsafe_allow_html=True,
+)
 
 
 # ---- Chart 1: Top MSA Healthcare Share (2022)
 try:
-    bar_chart = plot_top_msa_healthcare_share(df)
+    bar_chart = plot_top_msa_healthcare_share(datasets_df)
     st.altair_chart(bar_chart, use_container_width=True)
 except Exception as exc:
     st.error("Could not render the Top Healthcare Share bar chart.")
-    logger.exception(exc)
+    logging.exception(exc)
 
 
 # ---- Chart 2: Lollipop Chart (Change 1980–2022)
 try:
-    lollipop_chart = plot_lollipop_healthcare_growth(df)
+    lollipop_chart = plot_lollipop_healthcare_growth(datasets_df)
     st.altair_chart(lollipop_chart, use_container_width=True)
 except Exception as exc:
     st.error("Could not render the Lollipop Healthcare Growth chart.")
-    logger.exception(exc)
-
-
-# -------------------------
-# Demographics Comparison Section
-# -------------------------
-merged_pop_1980 = datasets['merged_1980']
-min_df_2022 = datasets['min_2022']
-
-if merged_pop_1980 is None or min_df_2022 is None:
-    st.warning(
-        "1980/2022 population detail files not found. Skipping the demographics comparison section. "
-        "Place files in Downloads or ../data and reload."
-    )
-else:
-    render_demographics_comparison(merged_pop_1980, min_df_2022)
-
+    logging.exception(exc)
