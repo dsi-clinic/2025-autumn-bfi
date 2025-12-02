@@ -1738,7 +1738,7 @@ def main() -> dict[str, Any]:
 
     LOGGER.info("Pipeline complete. Final dataset saved to %s", output_path)
 
-    # build tables
+    # build tables nkyb
     pop_1980_table = make_msa_tables(final_pop_1980)
     pop_2022_table = make_msa_tables(min_df_2022)
     labor_table = build_msa_industry_tables(merged_all_ind)
