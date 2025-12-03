@@ -9,6 +9,8 @@ import altair as alt
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
+from gt_utilities.config import CHART_COLOR_SCALE, VARIABLE_NAME_MAP
+
 alt.data_transformers.disable_max_rows()
 
 
@@ -51,6 +53,7 @@ def make_colored_reg_chart(
     x_label: str,
     y_label: str,
     palette: list[str],
+    size_large: bool = False,
 ) -> alt.Chart:
     """Create an Altair scatterplot with regression line and tooltip + stats.
 
@@ -61,6 +64,7 @@ def make_colored_reg_chart(
         x_label: Display label for x-axis
         y_label: Display label for y-axis
         palette: List of colors [scatter_color, line_color, ...]
+        size_large: Whether to display a fullsize chart.
 
     Returns:
         Configured Altair chart
@@ -68,8 +72,18 @@ def make_colored_reg_chart(
     logging.info(f"Building chart: {y_label} vs {x_label}")
 
     base = alt.Chart(datadf).encode(
-        x=alt.X(x, title=x_label, axis=alt.Axis(labelFontSize=11, titleFontSize=12)),
-        y=alt.Y(y, title=y_label, axis=alt.Axis(labelFontSize=11, titleFontSize=12)),
+        x=alt.X(
+            x,
+            title=x_label,
+            scale=alt.Scale(zero=False),
+            axis=alt.Axis(labelFontSize=11, titleFontSize=12),
+        ),
+        y=alt.Y(
+            y,
+            title=y_label,
+            scale=alt.Scale(zero=False),
+            axis=alt.Axis(labelFontSize=11, titleFontSize=12),
+        ),
     )
 
     points = base.mark_circle(size=80, opacity=0.75, color=palette[0]).encode(
@@ -93,9 +107,14 @@ def make_colored_reg_chart(
         .encode(text="text:N")
     )
 
-    chart = (points + regression + stats_text).properties(
-        width=340, height=330, title=f"{y_label} vs {x_label}"
-    )
+    if size_large:
+        chart = (points + regression + stats_text).properties(
+            width=340, height=530, title=f"{y_label} vs. {x_label}"
+        )
+    else:
+        chart = (points + regression + stats_text).properties(
+            width=340, height=330, title=x_label
+        )
 
     return chart
 
@@ -131,11 +150,7 @@ def make_scatter_chart(
 
     regression = base.transform_regression(x, y).mark_line(color="black", strokeWidth=2)
 
-    return (scatter + regression).properties(
-        width=330,
-        height=400,
-        title=f"{y_label} vs {x_label}",
-    )
+    return (scatter + regression).properties(width=330, height=400, title=x_label)
 
 
 def create_demographics_comparison_chart(
@@ -192,13 +207,14 @@ def create_demographics_comparison_chart(
 
 
 # ------------------------------------------------------
-# Additional Chart 1: Top MSAs by Healthcare Employment Share
+# Bar Chart: Top MSAs by Healthcare Employment Share
 # ------------------------------------------------------
 
 
-def plot_top_msa_healthcare_share(df: pd.DataFrame, top_n: int = 10) -> alt.Chart:
+def plot_top_msas(df: pd.DataFrame, variable: str, top_n: int = 10) -> alt.Chart:
     """Bar chart of top MSAs by healthcare employment share (2022)."""
-    top_df = df.nlargest(top_n, "healthcare_share_prime2022").copy()
+    top_df = df.nlargest(top_n, variable).copy()
+    pretty: str = VARIABLE_NAME_MAP.get(variable, variable)
 
     chart = (
         alt.Chart(top_df)
@@ -210,24 +226,27 @@ def plot_top_msa_healthcare_share(df: pd.DataFrame, top_n: int = 10) -> alt.Char
                 axis=alt.Axis(labelFontSize=13, labelLimit=350, title=None),
             ),
             x=alt.X(
-                "healthcare_share_prime2022:Q",
-                title="Healthcare Employment Share (2022)",
+                variable,
+                title=pretty,
                 axis=alt.Axis(
-                    format=".0%", labelFontSize=12, titleFontSize=14, grid=False
+                    format=".0%",
+                    labelFontSize=12,
+                    titleFontSize=14,
+                    grid=False,
+                    tickMinStep=0.01,
                 ),
             ),
             color=alt.Color(
-                "healthcare_share_prime2022:Q",
-                scale=alt.Scale(range=["#ecd2c2", "#a05252", "#800000"]),
+                variable,
+                scale=alt.Scale(range=CHART_COLOR_SCALE),
                 legend=None,
             ),
             tooltip=[
                 "metro_title",
-                alt.Tooltip("healthcare_share_prime2022:Q", format=".2%"),
+                alt.Tooltip(variable, format=".2%"),
             ],
         )
         .properties(
-            title=f"Top {top_n} MSAs by Healthcare Employment Share (2022)",
             width=700,
             height=450,
         )
@@ -237,65 +256,4 @@ def plot_top_msa_healthcare_share(df: pd.DataFrame, top_n: int = 10) -> alt.Char
     )
 
     logging.info(f"Generated bar chart for top {top_n} MSAs.")
-    return chart
-
-
-# ------------------------------------------------------
-# Additional Chart 2: Lollipop Chart (Change 1980–2022)
-# ------------------------------------------------------
-
-TOP_N_MSA = 10
-COLOR_STEM = "#a05252"
-COLOR_DOT = "#800000"
-DATA_COLUMN = "hc_emp_share_prime_change"
-LABEL_COLUMN = "metro_title"
-ZERO_BASE_COL = "zero"
-CHART_WIDTH = 720
-CHART_HEIGHT = 500
-
-
-def plot_lollipop_healthcare_growth(
-    df: pd.DataFrame, top_n: int = TOP_N_MSA
-) -> alt.Chart:
-    """Lollipop chart: top MSAs with the largest increase in HC employment share (1980–2022)."""
-    top_df = df.nlargest(top_n, DATA_COLUMN).copy()
-    top_df[ZERO_BASE_COL] = 0
-
-    base = alt.Chart(top_df).encode(
-        x=alt.X(
-            f"{LABEL_COLUMN}:N",
-            sort="-y",
-            axis=alt.Axis(labelAngle=-30, labelFontSize=11, labelLimit=250, title=None),
-        ),
-        y=alt.Y(
-            f"{DATA_COLUMN}:Q",
-            title="Increase in Healthcare Employment Share (1980–2022)",
-            axis=alt.Axis(format=".1%", labelFontSize=11, titleFontSize=13, grid=False),
-        ),
-    )
-
-    stems = base.mark_rule(stroke=COLOR_STEM, strokeWidth=2).encode(
-        y=f"{ZERO_BASE_COL}:Q", y2=f"{DATA_COLUMN}:Q"
-    )
-
-    dots = base.mark_circle(size=130, color=COLOR_DOT).encode(
-        tooltip=[
-            alt.Tooltip(f"{LABEL_COLUMN}:N", title="MSA"),
-            alt.Tooltip(f"{DATA_COLUMN}:Q", title="Change (%)", format=".2%"),
-        ]
-    )
-
-    chart = (
-        (stems + dots)
-        .properties(
-            title=f"Top {top_n} MSAs with the Largest Increase in Healthcare Employment Share (1980–2022)",
-            width=CHART_WIDTH,
-            height=CHART_HEIGHT,
-        )
-        .configure_title(fontSize=18, font="Lato", anchor="start")
-        .configure_axis(labelFont="Lato", titleFont="Lato", grid=False)
-        .configure_view(strokeWidth=0)
-    )
-
-    logging.info("Lollipop chart created successfully.")
     return chart
