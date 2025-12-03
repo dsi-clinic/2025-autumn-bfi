@@ -119,38 +119,38 @@ RELATIONSHIPS: list[tuple[str, str, str, str, list[str]]] = [
 
 GDP_RELATIONSHIPS: list[tuple[str, str, str, str, str]] = [
     (
-        "gdp_growth_2021_percent",
         "hc_emp_share_prime_change",
-        "GDP Growth (2021, %)",
+        "gdp_growth_2021_percent",
         "Healthcare Employment Share Change",
+        "GDP Growth (2021, %)",
         COLOR_PALETTE["healthcare"],
     ),
     (
-        "gdp_growth_2021_percent",
         "change_ln_population",
-        "GDP Growth (2021, %)",
+        "gdp_growth_2021_percent",
         "Population Growth (log)",
+        "GDP Growth (2021, %)",
         COLOR_PALETTE["population"],
     ),
     (
-        "gdp_growth_2021_percent",
         "change_earnings",
-        "GDP Growth (2021, %)",
+        "gdp_growth_2021_percent",
         "Earnings Change",
+        "GDP Growth (2021, %)",
         COLOR_PALETTE["earnings"],
     ),
     (
-        "gdp_growth_2021_percent",
         "change_college",
-        "GDP Growth (2021, %)",
+        "gdp_growth_2021_percent",
         "College Share Change",
+        "GDP Growth (2021, %)",
         COLOR_PALETTE["college"],
     ),
     (
-        "gdp_growth_2021_percent",
         "manu_share_prime_change",
-        "GDP Growth (2021, %)",
+        "gdp_growth_2021_percent",
         "Manufacturing Share Change",
+        "GDP Growth (2021, %)",
         COLOR_PALETTE["manufacturing"],
     ),
 ]
@@ -161,32 +161,32 @@ GDP_RELATIONSHIPS: list[tuple[str, str, str, str, str]] = [
 PAGE_CONFIG: dict[str, str] = {"layout": "wide", "page_title": "MSA Dashboard"}
 
 # -------------------------
-# Custom CSS Styling
+# Custom CSS Styling (Apply as needed)
 # -------------------------
-CUSTOM_CSS: str = """
-    <style>
-    .stApp .css-18e3th9 {
-        padding-top: 1rem;
-    }
-    h1, h2, h3, h4, h5, h6 {
-        color: white !important;
-        text-align: center !important;
-        margin: 0.2rem 0 0.6rem 0;
-    }
-    p, div, span {
-        color: white !important;
-    }
-    .center-caption {
-        color: rgba(255,255,255,0.9);
-        text-align: center;
-        margin-bottom: 0.75rem;
-    }
-    .logo-col img {
-        display: block;
-        margin-left: 0;
-    }
-    </style>
-"""
+# CUSTOM_CSS: str = """
+#     <style>
+#     .stApp .css-18e3th9 {
+#         padding-top: 1rem;
+#     }
+#     h1, h2, h3, h4, h5, h6 {
+#         color: white !important;
+#         text-align: center !important;
+#         margin: 0.2rem 0 0.6rem 0;
+#     }
+#     p, div, span {
+#         color: white !important;
+#     }
+#     .center-caption {
+#         color: rgba(255,255,255,0.9);
+#         text-align: center;
+#         margin-bottom: 0.75rem;
+#     }
+#     .logo-col img {
+#         display: block;
+#         margin-left: 0;
+#     }
+#     </style>
+# """
 
 # -------------------------
 # Demographics Categories
@@ -232,7 +232,7 @@ VARIABLE_NAME_MAP = {
     "non_hc_share_prime_change": "Change in Non-Healthcare Prime-Age Employment Share (1980–2022)",
     "not_lbfr_share_prime_change": "Change in Prime-Age Not-in-Labor-Force Share (1980–2022)",
     "unemployed_share_prime_change": "Change in Prime-Age Unemployment Share (1980–2022)",
-    "non_hc_manu_share_prime_change": "Change in Prime-Age Non-HC & Non-Manufacturing Employment Share (1980–2022)",
+    "non_hc_manu_share_prime_change": "Change in Prime-Age Non-Healthcare & Non-Manufacturing Employment Share (1980–2022)",
     "non_manu_share_prime_change": "Change in Prime-Age Non-Manufacturing Share (1980–2022)",
     "medicare_share1980": "Medicare Share (1980)",
     "medicare_share2022": "Medicare Share (2022)",
@@ -244,3 +244,9 @@ VARIABLE_NAME_MAP = {
     "college2022": "College Degree Share (2022)",
     "change_college": "Change in College Degree Share (1980–2022)",
 }
+
+# --------------------------
+# Chart Color Scales
+# --------------------------
+
+CHART_COLOR_SCALE: list = ["#ecd2c2", "#a05252", "#800000"]

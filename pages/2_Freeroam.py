@@ -23,11 +23,26 @@ if st.button("Go back Home"):
 
 if st.button("Go to Guided Tour"):
     st.switch_page("pages/1_Guided_Tour.py")
-st.title("Metropolitan Area and Statewide Healthcare Data Explorer")
+st.title("Free Roam: Metropolitan Area and Statewide Healthcare Data Explorer")
+
+st.markdown(
+    "<p>This page displays all our data in an interactive format, "
+    "allowing you to browse at your own pace. </p>",
+    unsafe_allow_html=True,
+)
+
 indicator = st.selectbox(
-    "Select variable",
+    "Select variable for map and bar plot",
     options=value_columns,
     format_func=lambda x: VARIABLE_NAME_MAP.get(x, x),
+)
+
+st.markdown(
+    "<p><em>“Prime-age” is defined as individuals 25-54 years old</em></p>"
+    "<p><em>Changes in logarithmic figures ('Log') is equivalent "
+    "to percentage increase (positive log) / decrease (negative log) divided "
+    "by 100</em></p>",
+    unsafe_allow_html=True,
 )
 
 pretty: str = VARIABLE_NAME_MAP.get(indicator, indicator)
@@ -56,8 +71,7 @@ st.plotly_chart(fig_bar, width="stretch")
 # -------------------------
 # Create user-generated scatterplot for selected variables
 # -------------------------
-st.header("Explore Relationships Between Variables")
-st.markdown("### Visualize correlations between any two indicators below.")
+st.header("Create your own scatterplot")
 
 y_var = st.selectbox(
     "Select Response (y) variable",

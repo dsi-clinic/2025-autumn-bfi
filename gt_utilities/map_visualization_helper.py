@@ -16,6 +16,7 @@ from gt_utilities import config, find_project_root
 PROJECT_ROOT = find_project_root()
 DATA_DIR = PROJECT_ROOT / "data"
 BFI_SOURCE = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
+chart_color_scale = config.CHART_COLOR_SCALE
 
 
 @st.cache_data
@@ -88,7 +89,7 @@ def generate_choropleth_map(
         locations="metro13",
         featureidkey="properties.region_id",
         color=pretty_name,
-        color_continuous_scale="orrd",
+        color_continuous_scale=chart_color_scale,
         hover_name="metro_title",
         hover_data={pretty_name: ":.2f", "metro13": False},
         map_style="open-street-map",
@@ -130,9 +131,9 @@ def generate_bar_chart(df_selected: pd.DataFrame, pretty_name: str) -> go.Figure
         df_bar_sorted,
         x="metro_title",
         y=pretty_name,
-        title=f"{pretty_name} by Metropolitan Area<br><i>Drag to select</i>",
+        title=f"{pretty_name} by Metropolitan Area<br><i>Change drag to select/pan at top right</i>",
         color=pretty_name,
-        color_continuous_scale="orrd",
+        color_continuous_scale=chart_color_scale,
         labels={"value": pretty_name, "metro_title": "Metropolitan Area"},
     )
 
@@ -152,10 +153,11 @@ def make_scatterplot(
     x_var: str,
     y_var: str,
 ) -> go.Figure:
-    """Generates the scatterplot with Z-score coloring."""
+    """Generates the scatterplot with Z-score coloring, custom R^2 box, and cleaner hover."""
     # Work on a copy to avoid SettingWithCopy warnings on main data
     plot_df = datadf.copy()
 
+    # Handle variable names safely
     pretty_x = config.VARIABLE_NAME_MAP.get(x_var, x_var) if x_var else ""
     pretty_y = config.VARIABLE_NAME_MAP.get(y_var, y_var) if y_var else ""
 
@@ -166,6 +168,7 @@ def make_scatterplot(
     # Combine them (Euclidean distance from origin in z-space)
     plot_df["z_combined"] = np.sqrt(z_x**2 + z_y**2)
 
+    # 1. Create the Base Scatter with Trendline
     fig_scatter = px.scatter(
         plot_df,
         x=x_var,
@@ -174,16 +177,51 @@ def make_scatterplot(
         trendline="ols",
         color="z_combined",
         hover_data={"z_combined": False},
-        color_continuous_scale="orrd",
-        title=f"Regression: {pretty_y} vs. {pretty_x}<br><i>Drag to zoom</i>",
+        color_continuous_scale=chart_color_scale,
+        title=f"Regression: {pretty_y} vs. {pretty_x}<br><i>Drag to zoom / pan (toggle on top right)</i>",
         labels={x_var: pretty_x, y_var: pretty_y},
+    )
+
+    # 2. Extract R-squared value
+    # px.get_trendline_results returns a df where the 'px_fit_results' column holds the statsmodels object
+    try:
+        model_results = px.get_trendline_results(fig_scatter)
+        model = model_results.px_fit_results.iloc[0]
+        r_squared = model.rsquared
+        slope = model.params[1]
+        r2_text = f"R² = {r_squared:.3f}<br>Slope = {slope:.3f}"
+    except Exception:
+        r2_text = "R² = N/A"
+
+    # 3. Add the R^2 Annotation Box
+    fig_scatter.add_annotation(
+        text=r2_text,
+        xref="paper",
+        yref="paper",
+        x=0.98,
+        y=0.98,  # Top-left corner (adjust to 0.98, 0.98 for top-right)
+        showarrow=False,
+        font={"size": 14, "color": "white"},
+        bgcolor="rgba(0, 0, 0, 0.4)",  # Semi-transparent black background
+        bordercolor="white",
+        borderwidth=1,
+        borderpad=5,
+        align="right",
+    )
+
+    # 4. Clean up Trendline Hover
+    # Select only the trendline traces (mode='lines') and disable their hover info
+    fig_scatter.update_traces(
+        selector={"mode": "lines"},
+        hoverinfo="skip",  # This removes the tooltip entirely from the line
+        # Alternatively, use hovertemplate="%{y:.2f}" to just show values
     )
 
     fig_scatter.update_layout(
         title_x=0.05,
-        plot_bgcolor="#606060",  # the plotting area
-        paper_bgcolor="#656565",  # the surrounding area
         coloraxis_showscale=False,
+        xaxis={"showgrid": True, "gridcolor": "#707070"},
+        yaxis={"showgrid": True, "gridcolor": "#707070"},
     )
 
     return fig_scatter
