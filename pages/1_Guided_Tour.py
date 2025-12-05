@@ -96,7 +96,7 @@ st.markdown(
 
 try:
     bar_chart = plot_top_msas(datasets_df, "healthcare_share_prime2022")
-    st.altair_chart(bar_chart, use_container_width=True)
+    st.altair_chart(bar_chart, width="stretch")
 except Exception as exc:
     st.error("Could not render the Top Healthcare Share bar chart.")
     logging.exception(exc)
@@ -115,7 +115,7 @@ st.markdown(
 # ---- Chart 2: Top MSA Healthcare Share Change Bar Chart (1980–2022)
 try:
     bar_chart_2 = plot_top_msas(datasets_df, "hc_emp_share_prime_change")
-    st.altair_chart(bar_chart_2, use_container_width=True)
+    st.altair_chart(bar_chart_2, width="stretch")
 except Exception as exc:
     st.error("Could not render the Lollipop Healthcare Growth chart.")
     logging.exception(exc)
