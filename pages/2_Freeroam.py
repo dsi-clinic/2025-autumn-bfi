@@ -18,18 +18,16 @@ combined_geo = map_utils.load_geojson()
 
 # --- Streamlit setup ---
 st.set_page_config(layout="wide")
-if st.button("Go back Home"):
-    st.switch_page("Homepage.py")
+col1, col2, col3 = st.columns([2, 5, 5])
 
-if st.button("Go to Guided Tour"):
-    st.switch_page("pages/1_Guided_Tour.py")
-st.title("Free Roam: Metropolitan Area and Statewide Healthcare Data Explorer")
+with col2:
+    if st.button("Go Back Home"):
+        st.switch_page("Homepage.py")
+with col3:
+    if st.button("Enter Guided Tour"):
+        st.switch_page("pages/1_Guided_Tour.py")
 
-st.markdown(
-    "<p>This page displays all our data in an interactive format, "
-    "allowing you to browse at your own pace. </p>",
-    unsafe_allow_html=True,
-)
+st.title("Free Roam: Metropolitan Area and State Healthcare Data Explorer")
 
 indicator = st.selectbox(
     "Select variable for map and bar plot",

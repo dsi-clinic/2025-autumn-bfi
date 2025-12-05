@@ -136,8 +136,18 @@ def make_scatter_chart(
         Configured Altair chart
     """
     base = alt.Chart(datadf).encode(
-        x=alt.X(x, title=x_label, axis=alt.Axis(labelFontSize=11, titleFontSize=12)),
-        y=alt.Y(y, title=y_label, axis=alt.Axis(labelFontSize=11, titleFontSize=12)),
+        x=alt.X(
+            x,
+            title=x_label,
+            scale=alt.Scale(zero=False),
+            axis=alt.Axis(labelFontSize=11, titleFontSize=12),
+        ),
+        y=alt.Y(
+            y,
+            title=y_label,
+            scale=alt.Scale(zero=False),
+            axis=alt.Axis(labelFontSize=11, titleFontSize=12),
+        ),
     )
 
     scatter = base.mark_circle(size=80, opacity=0.7, color=color).encode(
@@ -148,7 +158,7 @@ def make_scatter_chart(
         ]
     )
 
-    regression = base.transform_regression(x, y).mark_line(color="black", strokeWidth=2)
+    regression = base.transform_regression(x, y).mark_line(color=color, strokeWidth=2)
 
     return (scatter + regression).properties(width=330, height=400, title=x_label)
 

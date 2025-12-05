@@ -13,12 +13,14 @@ from gt_utilities.charts import (
 from gt_utilities.loaders import load_all_datasets
 
 st.set_page_config(layout="wide")
-if st.button("Go back Home"):
-    st.switch_page("Homepage.py")
-if st.button("Go to Freeroam"):
-    st.switch_page("pages/2_Freeroam.py")
-st.title("Guided Tour: Key Trends")
+col1, col2, col3 = st.columns([2, 5, 5])
 
+with col2:
+    if st.button("Go Back Home"):
+        st.switch_page("Homepage.py")
+with col3:
+    if st.button("Enter Free Roam"):
+        st.switch_page("pages/2_Freeroam.py")
 
 # -------------------------
 # Page Configuration
@@ -39,6 +41,8 @@ if datasets["main"] is None:
     st.stop()
 
 datasets_df = datasets["main"]
+
+st.title("Guided Tour: A Curated Walkthrough of the Data")
 
 # Header
 st.markdown(
@@ -156,7 +160,7 @@ st.markdown("<h5 style='text-align: center;'>Figure 3.1:</h5>", unsafe_allow_htm
 st.altair_chart(fig_3_1, width="stretch")
 st.markdown(
     "<p class='center-caption'>We first examine whether a trend of "
-    "'Manufacturing-to-Meds' exists; that is, former rust-belt or cities with"
+    "'Manufacturing-to-Meds' exists; that is, former rust-belt or cities with "
     "large industrial production capacity recasting themselves as healthcare hubs.</p>"
     "<p class='center-caption'> To avoid reverse causality and omitted variables, "
     "we predict declines in manufacturing employment using manufacturing’s share "
