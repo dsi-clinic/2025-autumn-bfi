@@ -19,17 +19,6 @@ def prepare_1980_tables(min_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     Returns:
         Dictionary mapping MSA names to demographics proportion tables
     """
-    # rename_map = {
-    #     "white male": "WAC_MALE",
-    #     "black male": "BAC_MALE",
-    #     "other races male": "OTHER_MALE",
-    #     "white female": "WAC_FEMALE",
-    #     "black female": "BAC_FEMALE",
-    #     "other races female": "OTHER_FEMALE"
-    # }
-
-    # min_df = min_df.rename(columns=rename_map)
-
     msa_totals = min_df.groupby("metro_title", as_index=False)[
         DEMOGRAPHIC_CATEGORIES
     ].sum()
@@ -92,17 +81,6 @@ def prepare_tables(min_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     Returns:
         Dictionary mapping MSA names to demographics proportion tables
     """
-    # rename_map = {
-    #     "white male": "WAC_MALE",
-    #     "black male": "BAC_MALE",
-    #     "other races male": "OTHER_MALE",
-    #     "white female": "WAC_FEMALE",
-    #     "black female": "BAC_FEMALE",
-    #     "other races female": "OTHER_FEMALE"
-    # }
-
-    # min_df = min_df.rename(columns=rename_map)
-
     msa_totals = min_df.groupby("metro_title", as_index=False)[
         DEMOGRAPHIC_AGG_COLS
     ].sum()
