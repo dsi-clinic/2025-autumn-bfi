@@ -161,36 +161,9 @@ GDP_RELATIONSHIPS: list[tuple[str, str, str, str, str]] = [
 PAGE_CONFIG: dict[str, str] = {"layout": "wide", "page_title": "MSA Dashboard"}
 
 # -------------------------
-# Custom CSS Styling (Apply as needed)
-# -------------------------
-# CUSTOM_CSS: str = """
-#     <style>
-#     .stApp .css-18e3th9 {
-#         padding-top: 1rem;
-#     }
-#     h1, h2, h3, h4, h5, h6 {
-#         color: white !important;
-#         text-align: center !important;
-#         margin: 0.2rem 0 0.6rem 0;
-#     }
-#     p, div, span {
-#         color: white !important;
-#     }
-#     .center-caption {
-#         color: rgba(255,255,255,0.9);
-#         text-align: center;
-#         margin-bottom: 0.75rem;
-#     }
-#     .logo-col img {
-#         display: block;
-#         margin-left: 0;
-#     }
-#     </style>
-# """
-
-# -------------------------
 # Demographics Categories
 # -------------------------
+# List of demographic categories used for labeling or grouping in Population Distribution bar charts
 DEMOGRAPHIC_CATEGORIES: list[str] = [
     "TOT_POP",
     "TOT_MALE",
@@ -202,7 +175,7 @@ DEMOGRAPHIC_CATEGORIES: list[str] = [
     "black female",
     "other races female",
 ]
-
+# List of demographic columns used for aggregated calculations
 DEMOGRAPHIC_AGG_COLS: list[str] = [
     "TOT_POP",
     "TOT_MALE",
