@@ -121,7 +121,7 @@ If successful, the dashboard will be accessible at **http://localhost:8501**.
 ├── pyproject.toml                      # Python dependencies (uv)
 └── test_chart.html                     # Test chart
 ```
-*Created once code is run
+#### * Created once code is run
 ---
 
 ## Data
