@@ -36,14 +36,12 @@ indicator = st.selectbox(
 )
 
 st.markdown(
-    "<p><em>“Prime-age” is defined as individuals 25-54 years old</em></p>"
-    "<p><em>Changes in logarithmic figures ('Log') is equivalent "
-    "to percentage increase (positive log) / decrease (negative log) divided "
-    "by 100</em></p>",
+    "<p><em>“Prime-age” is defined as individuals 25-54 years old</em></p>",
     unsafe_allow_html=True,
 )
 
 pretty: str = VARIABLE_NAME_MAP.get(indicator, indicator)
+number_fmt = ".2f" if pretty.startswith(("Log", "Change in Log")) else ".0%"
 
 df_selected_variables = map_utils.prepare_display_data(
     df_long_for_display, indicator, pretty
@@ -52,7 +50,9 @@ df_selected_variables = map_utils.prepare_display_data(
 # -------------------------
 # Create the MapLibre choropleth
 # -------------------------
-fig_map = map_utils.generate_choropleth_map(df_selected_variables, combined_geo, pretty)
+fig_map = map_utils.generate_choropleth_map(
+    df_selected_variables, combined_geo, pretty, number_fmt
+)
 
 st.plotly_chart(fig_map, width="stretch", config={"scrollZoom": True})
 
@@ -65,6 +65,7 @@ fig_bar = map_utils.generate_bar_chart(
 )
 
 st.plotly_chart(fig_bar, width="stretch")
+st.markdown("<hr>", unsafe_allow_html=True)
 
 # -------------------------
 # Create user-generated scatterplot for selected variables
@@ -91,6 +92,9 @@ if x_var and y_var:
     st.plotly_chart(fig_scatter, width="stretch")
 else:
     st.info("Select two variables above to view a regression scatterplot.")
+
+st.space(size="medium")
+st.markdown("<hr>", unsafe_allow_html=True)
 
 # -------------------------
 # Demographics Comparison Section

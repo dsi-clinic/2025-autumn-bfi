@@ -19,17 +19,6 @@ def prepare_1980_tables(min_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     Returns:
         Dictionary mapping MSA names to demographics proportion tables
     """
-    # rename_map = {
-    #     "white male": "WAC_MALE",
-    #     "black male": "BAC_MALE",
-    #     "other races male": "OTHER_MALE",
-    #     "white female": "WAC_FEMALE",
-    #     "black female": "BAC_FEMALE",
-    #     "other races female": "OTHER_FEMALE"
-    # }
-
-    # min_df = min_df.rename(columns=rename_map)
-
     msa_totals = min_df.groupby("metro_title", as_index=False)[
         DEMOGRAPHIC_CATEGORIES
     ].sum()
@@ -92,17 +81,6 @@ def prepare_tables(min_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     Returns:
         Dictionary mapping MSA names to demographics proportion tables
     """
-    # rename_map = {
-    #     "white male": "WAC_MALE",
-    #     "black male": "BAC_MALE",
-    #     "other races male": "OTHER_MALE",
-    #     "white female": "WAC_FEMALE",
-    #     "black female": "BAC_FEMALE",
-    #     "other races female": "OTHER_FEMALE"
-    # }
-
-    # min_df = min_df.rename(columns=rename_map)
-
     msa_totals = min_df.groupby("metro_title", as_index=False)[
         DEMOGRAPHIC_AGG_COLS
     ].sum()
@@ -154,6 +132,7 @@ def render_demographics_comparison(
     merged_pop: pd.DataFrame,
     latest_data_year: int = 2022,
     earliest_data_year: int = 1980,
+    sort_states_constant: int = 2,
 ) -> None:
     """Render the complete demographics comparison section with interactive dropdown.
 
@@ -161,6 +140,8 @@ def render_demographics_comparison(
         merged_pop: Merged population DataFrame containing both year's data
         latest_data_year: The later year with data (default: 2022)
         earliest_data_year: The earliest year with data (default: 1980)
+        sort_states_constant: Length of state name, used for filtering out
+            states from this chart since they have no data
     """
     # Prepare tables
     merged_pop["year"] = pd.to_numeric(merged_pop["year"], errors="coerce")
@@ -170,8 +151,12 @@ def render_demographics_comparison(
     msa_tables_2022 = prepare_tables(merged_pop_2022)
     msa_tables_1980 = prepare_1980_tables(merged_pop_1980)
 
-    # Get common MSAs
-    common_msas = sorted(set(msa_tables_1980.keys()) & set(msa_tables_2022.keys()))
+    # Get common MSAs and filter out states since states have no demographics data
+    common_msas = [
+        msa
+        for msa in sorted(set(msa_tables_1980.keys()) & set(msa_tables_2022.keys()))
+        if len(msa) > sort_states_constant
+    ]
 
     if not common_msas:
         st.warning("No common MSAs found between 1980 and 2022 datasets.")

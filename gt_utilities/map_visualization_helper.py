@@ -75,6 +75,7 @@ def generate_choropleth_map(
     df_selected: pd.DataFrame,
     geojson: dict[str, Any],
     pretty_name: str,
+    number_fmt: str = ".0%",
 ) -> go.Figure:
     """Generates the MapLibre choropleth figure.
 
@@ -82,6 +83,7 @@ def generate_choropleth_map(
     - df_selected: DataFrame containing the data to plot, usually a pipeline from prepare_display_data().
     - geojson: GeoJSON dictionary for the map regions.
     - pretty_name: Pretty names mapped for display.
+    - number_fmt: Formatting number presentation, following format mini-language standards
     """
     fig = px.choropleth_map(
         df_selected,
@@ -91,7 +93,7 @@ def generate_choropleth_map(
         color=pretty_name,
         color_continuous_scale=chart_color_scale,
         hover_name="metro_title",
-        hover_data={pretty_name: ":.2f", "metro13": False},
+        hover_data={pretty_name: f":{number_fmt}", "metro13": False},
         map_style="open-street-map",
         zoom=3,
         center={"lat": 37.8, "lon": -96},
@@ -112,18 +114,22 @@ def generate_choropleth_map(
             "thickness": 15,
             "title": pretty_name,
             "title_side": "top",
+            "tickformat": number_fmt,
         },
     )
     return fig
 
 
 @st.cache_data
-def generate_bar_chart(df_selected: pd.DataFrame, pretty_name: str) -> go.Figure:
+def generate_bar_chart(
+    df_selected: pd.DataFrame, pretty_name: str, number_fmt: str = ".0%"
+) -> go.Figure:
     """Generates the sorted bar chart.
 
     Inputs:
     - df_selected: DataFrame containing the data to plot, usually a pipeline from prepare_display_data().
     - pretty_name: The pretty name to assign to the value column for display.
+    - number_fmt: Formatting number presentation, following format mini-language standards
     """
     df_bar_sorted = df_selected.sort_values("value", ascending=False)
 
@@ -142,7 +148,9 @@ def generate_bar_chart(df_selected: pd.DataFrame, pretty_name: str) -> go.Figure
         yaxis_title="Value",
     )
 
-    fig_bar.update_traces(hovertemplate="%{x}<br>Value: %{y:.2f}<extra></extra>")
+    fig_bar.update_traces(
+        hovertemplate=f"%{{x}}<br>Value: %{{y:{number_fmt}}}<extra></extra>"
+    )
 
     return fig_bar
 
