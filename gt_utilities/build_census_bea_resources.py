@@ -1,6 +1,8 @@
-"""Builder of census and labor data .
+"""Builder of census and labor data tables.
 
-This file builds
+This file builds:
+- A MSA-level race/sex proportion table given a dataframe
+- Summary table for aggregate industry data by MSA and year
 """
 
 import logging
@@ -19,7 +21,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 def make_msa_tables(final_pop_df: pd.DataFrame) -> dict:  # put this into make_resources
-    """Builds 1980 MSA-level race/sex proportion tables and logs all steps.
+    """Builds MSA-level race/sex proportion tables and logs all steps.
+
+    Parameters:
+        final_pop_df (pd.DataFrame): Cleaned 1980 population dataset with MSA codes.
 
     Returns:
         dict: mapping {msa_title: DataFrame of 2x3 proportions}
