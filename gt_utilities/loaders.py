@@ -9,9 +9,9 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+from gt_utilities import setup_logger
+
+LOGGER: logging.Logger = setup_logger(__name__)
 
 
 def try_read_csv(path: Path, file_label: str = "file") -> pd.DataFrame | None:
@@ -28,11 +28,11 @@ def try_read_csv(path: Path, file_label: str = "file") -> pd.DataFrame | None:
 
     if path.exists():
         try:
-            df_expanded = pd.read_csv(path)
-            logging.info(f"✓ Loaded {file_label} from {path}")
+            df_expanded: pd.DataFrame = pd.read_csv(path)
+            LOGGER.info(f"✓ Loaded {file_label} from {path}")
             return df_expanded
         except Exception as e:
-            logging.error(f"✗ Failed to read {file_label} at {path}: {e}")
+            LOGGER.error(f"✗ Failed to read {file_label} at {path}: {e}")
             return None
     else:
         st.error(f"❌ Missing {file_label}: expected at {path}")
@@ -48,7 +48,7 @@ def load_main_data(data_paths: Path) -> pd.DataFrame | None:
     Returns:
         Preprocessed DataFrame or None if loading fails
     """
-    df_data_paths = try_read_csv(data_paths, "main MSA dataset")
+    df_data_paths: pd.DataFrame | None = try_read_csv(data_paths, "main MSA dataset")
 
     if df_data_paths is None:
         return None
@@ -56,9 +56,9 @@ def load_main_data(data_paths: Path) -> pd.DataFrame | None:
     # Trim original notebook slicing if present
     try:
         df_data_paths = df_data_paths.iloc[33:].reset_index(drop=True)
-        logging.info("Applied row slicing (removed first 33 rows)")
+        LOGGER.info("Applied row slicing (removed first 33 rows)")
     except Exception as e:
-        logging.warning(f"Could not apply row slicing: {e}")
+        LOGGER.warning(f"Could not apply row slicing: {e}")
 
     return df_data_paths
 
@@ -78,7 +78,7 @@ def load_all_datasets(
     Returns:
         Dictionary with dataset names as keys and DataFrames as values
     """
-    datasets = {}
+    datasets: dict[str, pd.DataFrame | None] = {}
 
     # Load main dataset (required)
     datasets["main"] = load_main_data(data_paths)

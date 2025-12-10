@@ -14,9 +14,10 @@ import gt_utilities.build_census_bea_resources as builder
 import gt_utilities.clean_census_bea_data as cleaner
 import gt_utilities.get_census_bea_data as getter
 import gt_utilities.merge_census_bea_data as merger
+from gt_utilities import setup_logger
 from gt_utilities.config import DATA_DIR
 
-LOGGER = logging.getLogger(__name__)
+LOGGER: logging.Logger = setup_logger(__name__)
 
 
 def run_full_pipeline() -> tuple[dict, dict, dict]:

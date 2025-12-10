@@ -29,7 +29,7 @@ COLOR_PALETTE: dict[str, str] = {
 # -------------------------
 PROJECT_ROOT: Path = find_project_root()
 DATA_DIR: Path = PROJECT_ROOT / "data"
-RAW_DATA_DIR = DATA_DIR / "raw_data"
+RAW_DATA_DIR: Path = DATA_DIR / "raw_data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -38,7 +38,7 @@ GDP_PATHS: Path = DATA_DIR / "merged_healthcare_jobs_with_gdp.csv"
 MERGED_PATHS: Path = DATA_DIR / "merged_bfi.csv"
 
 COMBINED_GEOJSON: Path = DATA_DIR / "combined_US_regions_auto.geojson"
-GDP_FILE = DATA_DIR / "msa_gdp_percent_change.csv"
+GDP_FILE: Path = DATA_DIR / "msa_gdp_percent_change.csv"
 
 API_KEY: str = "73110DFA-D36D-4A7C-99C7-183B704E1596"
 BASE_URL: str = "https://apps.bea.gov/api/data"
@@ -49,14 +49,14 @@ MERGED_FILE: Path = DATA_DIR / "merged_healthcare_jobs_with_gdp.csv"
 # Resource urls for Raw Data
 # --------------------------
 # Make raw data urls hyper-parameters within dictionaries
-RAW_CENSUS_POP_DATA_URLS = {
+RAW_CENSUS_POP_DATA_URLS: dict[str, str] = {
     "https://www2.census.gov/programs-surveys/popest/datasets/"
     "1980-1990/counties/asrh/pe-02.csv": "1980",
     "https://www2.census.gov/programs-surveys/popest/datasets/"
     "2020-2023/metro/asrh/cbsa-est2023-alldata-char.csv": "2022",
 }
 
-UBLA_LABOR_DATA_ZIP_URLS_AND_RAW_PATHS = {
+UBLA_LABOR_DATA_ZIP_URLS_AND_RAW_PATHS: list[str, str] = {
     "https://data.bls.gov/cew/data/files/1980/sic/csv/"
     "sic_1980_annual_by_industry.zip": "sic.1980.annual.by_industry/"
     "sic.1980.annual 0Z (All Industries).csv",
@@ -65,7 +65,7 @@ UBLA_LABOR_DATA_ZIP_URLS_AND_RAW_PATHS = {
     "2022.annual 10 10 Total, all industries.csv",
 }
 
-NBER_COUNTY_CBSA_CROSSWALK_URL = (
+NBER_COUNTY_CBSA_CROSSWALK_URL: str = (
     "https://data.nber.org/cbsa-msa-fips-ssa-county-crosswalk/cbsatocountycrosswalk.csv"
 )
 
@@ -191,7 +191,7 @@ DEMOGRAPHIC_AGG_COLS: list[str] = [
 # -------------------------
 # Variable Name Map for Display
 # -------------------------
-VARIABLE_NAME_MAP = {
+VARIABLE_NAME_MAP: dict[str, str] = {
     "ln_msa_pop1980": "Log Population (1980)",
     "ln_msa_pop2022": "Log Population (2022)",
     "change_ln_population": "Change in Log Population (1980–2022)",

@@ -9,8 +9,10 @@ import altair as alt
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
+from gt_utilities import setup_logger
 from gt_utilities.config import CHART_COLOR_SCALE, VARIABLE_NAME_MAP
 
+LOGGER: logging.Logger = setup_logger(__name__)
 alt.data_transformers.disable_max_rows()
 
 
@@ -28,23 +30,23 @@ def compute_regression_stats(
         Formatted string with slope and R² values
     """
     try:
-        model = LinearRegression()
-        x_vals = datadf[[predictor_column]].dropna()
-        y_vals = datadf[response_column].dropna()
+        model: LinearRegression = LinearRegression()
+        x_vals: pd.DataFrame = datadf[[predictor_column]].dropna()
+        y_vals: pd.Series = datadf[response_column].dropna()
 
         # Align indices
-        y_aligned = y_vals.loc[x_vals.index]
+        y_aligned: pd.Series = y_vals.loc[x_vals.index]
 
         if len(x_vals) == 0 or len(y_aligned) == 0:
             return "Regression unavailable"
 
         model.fit(x_vals, y_aligned)
-        r2 = model.score(x_vals, y_aligned)
-        slope = model.coef_[0]
+        r2: float = model.score(x_vals, y_aligned)
+        slope: float = model.coef_[0]
 
         return f"Slope={slope:.2f}, R²={r2:.2f}"
     except Exception as e:
-        logging.warning(
+        LOGGER.warning(
             f"Could not compute regression stats for {predictor_column} vs {response_column}: {e}"
         )
         return "Regression unavailable"
@@ -58,7 +60,7 @@ def make_colored_reg_chart(
     response_label: str,
     palette: list[str],
     size_large: bool = False,
-) -> alt.Chart:
+) -> alt.Chart | str:
     """Create an Altair scatterplot with regression line and tooltip + stats.
 
     Args:
@@ -74,9 +76,9 @@ def make_colored_reg_chart(
         Configured Altair chart
     """
     try:
-        logging.info(f"Building chart: {response_label} vs {predictor_label}")
+        LOGGER.info(f"Building chart: {response_label} vs {predictor_label}")
 
-        base = alt.Chart(datadf).encode(
+        base: alt.Chart = alt.Chart(datadf).encode(
             x=alt.X(
                 predictor_column,
                 title=predictor_label,
@@ -91,7 +93,9 @@ def make_colored_reg_chart(
             ),
         )
 
-        points = base.mark_circle(size=80, opacity=0.75, color=palette[0]).encode(
+        points: alt.Chart = base.mark_circle(
+            size=80, opacity=0.75, color=palette[0]
+        ).encode(
             tooltip=[
                 alt.Tooltip("metro_title:N", title="MSA"),
                 alt.Tooltip(predictor_column, title=predictor_label, format=".2%"),
@@ -100,32 +104,32 @@ def make_colored_reg_chart(
         )
 
         # Regression line (Altair transform_regression)
-        regression = base.transform_regression(
+        regression: alt.Chart = base.transform_regression(
             predictor_column, response_column, method="linear"
         ).mark_line(color=palette[1], size=2.5)
 
         # Regression stats text
-        stats_label = compute_regression_stats(
+        stats_label: str = compute_regression_stats(
             datadf, predictor_column, response_column
         )
-        stats_text = (
+        stats_text: alt.Chart = (
             alt.Chart(pd.DataFrame({"text": [stats_label]}))
             .mark_text(align="left", x=10, y=15, fontSize=10, color="black")
             .encode(text="text:N")
         )
 
         if size_large:
-            chart = (points + regression + stats_text).properties(
+            chart: alt.Chart = (points + regression + stats_text).properties(
                 width=340, height=530, title=f"{response_label} vs. {predictor_label}"
             )
         else:
-            chart = (points + regression + stats_text).properties(
+            chart: alt.Chart = (points + regression + stats_text).properties(
                 width=340, height=330, title=predictor_label
             )
 
         return chart
     except Exception as e:
-        logging.warning(f"Could not create altair scatterplot: {e}")
+        LOGGER.warning(f"Could not create altair scatterplot: {e}")
         return "scatterplot unavailable"
 
 
@@ -136,7 +140,7 @@ def make_scatter_chart(
     predictor_label: str,
     response_label: str,
     color: str,
-) -> alt.Chart:
+) -> alt.Chart | str:
     """Create a scatter plot with regression line (simplified for GDP charts).
 
     Args:
@@ -151,7 +155,7 @@ def make_scatter_chart(
         Configured Altair chart
     """
     try:
-        base = alt.Chart(datadf).encode(
+        base: alt.Chart = alt.Chart(datadf).encode(
             x=alt.X(
                 predictor_variable,
                 title=predictor_label,
@@ -166,7 +170,7 @@ def make_scatter_chart(
             ),
         )
 
-        scatter = base.mark_circle(size=80, opacity=0.7, color=color).encode(
+        scatter: alt.Chart = base.mark_circle(size=80, opacity=0.7, color=color).encode(
             tooltip=[
                 alt.Tooltip("metro_title:N", title="MSA"),
                 alt.Tooltip(predictor_variable, title=predictor_label, format=".2f"),
@@ -174,7 +178,7 @@ def make_scatter_chart(
             ]
         )
 
-        regression = base.transform_regression(
+        regression: alt.Chart = base.transform_regression(
             predictor_variable, response_variable
         ).mark_line(color=color, strokeWidth=2)
 
@@ -182,13 +186,13 @@ def make_scatter_chart(
             width=330, height=400, title=predictor_label
         )
     except Exception as e:
-        logging.warning(f"Could not create altair scatterplot: {e}")
+        LOGGER.warning(f"Could not create altair scatterplot: {e}")
         return "scatterplot unavailable"
 
 
 def create_demographics_comparison_chart(
     df_1980: pd.DataFrame, df_2022: pd.DataFrame, msa_name: str
-) -> alt.Chart:
+) -> alt.Chart | str:
     """Create a grouped bar chart comparing demographics between 1980 and 2022.
 
     Args:
@@ -201,17 +205,17 @@ def create_demographics_comparison_chart(
     """
     try:
         # Prepare data
-        chart_df_1980 = df_1980.reset_index().melt(
+        chart_df_1980: pd.DataFrame = df_1980.reset_index().melt(
             id_vars="index", var_name="Race", value_name="Percentage"
         )
         chart_df_1980["Year"] = "1980"
 
-        chart_df_2022 = df_2022.reset_index().melt(
+        chart_df_2022: pd.DataFrame = df_2022.reset_index().melt(
             id_vars="index", var_name="Race", value_name="Percentage"
         )
         chart_df_2022["Year"] = "2022"
 
-        combined_df = pd.concat([chart_df_1980, chart_df_2022]).rename(
+        combined_df: pd.DataFrame = pd.concat([chart_df_1980, chart_df_2022]).rename(
             columns={"index": "Gender"}
         )
 
@@ -220,7 +224,7 @@ def create_demographics_comparison_chart(
         combined_df["Group"] = combined_df["Gender"] + " (" + combined_df["Year"] + ")"
 
         # Create chart
-        bar_chart = (
+        bar_chart: alt.Chart = (
             alt.Chart(combined_df)
             .mark_bar(size=28)
             .encode(
@@ -239,7 +243,7 @@ def create_demographics_comparison_chart(
 
         return bar_chart
     except Exception as e:
-        logging.warning(f"Could not create altair grouped bar chart: {e}")
+        LOGGER.warning(f"Could not create altair grouped bar chart: {e}")
         return "grouped bar chart unavailable"
 
 
@@ -248,7 +252,7 @@ def create_demographics_comparison_chart(
 # ------------------------------------------------------
 
 
-def plot_top_msas(df: pd.DataFrame, variable: str, top_n: int = 10) -> alt.Chart:
+def plot_top_msas(df: pd.DataFrame, variable: str, top_n: int = 10) -> alt.Chart | str:
     """Create a bar chart of the top N MSAs ranked by the specified variable.
 
     Args:
@@ -260,10 +264,10 @@ def plot_top_msas(df: pd.DataFrame, variable: str, top_n: int = 10) -> alt.Chart
         alt.Chart or str: Altair bar chart or a fallback message if chart creation fails.
     """
     try:
-        top_df = df.nlargest(top_n, variable).copy()
+        top_df: pd.DataFrame = df.nlargest(top_n, variable).copy()
         pretty: str = VARIABLE_NAME_MAP.get(variable, variable)
 
-        chart = (
+        chart: alt.Chart = (
             alt.Chart(top_df)
             .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
             .encode(
@@ -302,8 +306,8 @@ def plot_top_msas(df: pd.DataFrame, variable: str, top_n: int = 10) -> alt.Chart
             .configure_view(strokeWidth=0)
         )
 
-        logging.info(f"Generated bar chart for top {top_n} MSAs.")
+        LOGGER.info(f"Generated bar chart for top {top_n} MSAs.")
         return chart
     except Exception as e:
-        logging.warning(f"Could not create bar chart for '{variable}': {e}")
+        LOGGER.warning(f"Could not create bar chart for '{variable}': {e}")
         return "bar chart unavailable"
