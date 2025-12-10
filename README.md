@@ -20,14 +20,24 @@ This project extends the recent BFI working paper ["The Rise of Healthcare Jobs"
 
 ### Prerequisites
 
-- [Docker](https://www.docker.com/) and Docker Compose
+- [Docker](https://www.docker.com/)
 - [Git](https://git-scm.com/)
 - Windows PowerShell, macOS, or Linux terminal
-- *(Optional)* [Make](https://www.gnu.org/software/make/) for simplified commands
+- [Make](https://www.gnu.org/software/make/) for launching application
 
 ### Quick Start
 
-#### 1. Clone the Repository
+#### 1. Start Docker
+Before doing anything else, download and open Docker Desktop on your computer.
+
+Mac/Windows: Click the Docker "Whale" icon in your applications folder.
+
+Verification: Wait until the icon stops animating or says "Engine Running" (usually a green light) in the Docker Desktop window.
+
+*Tip: You can use the Docker app to manage Docker images and containers, as well as delete them*
+
+#### 2. Clone the Repository
+Open your Terminal (Mac) or Command Prompt/PowerShell (Windows) and run:
 ```bash
 git clone https://github.com/dsi-clinic/2025-autumn-bfi.git
 
@@ -35,93 +45,117 @@ git clone https://github.com/dsi-clinic/2025-autumn-bfi.git
 cd 2025-autumn-bfi
 ```
 
-### 2. Set Up Environment
+### 3. Configuration
 ```bash
-# This project uses uv for Python package management inside Docker Container.
-uv venv
-uv sync
-
-#Install additional packages (if needed)
-uv pip install package_name
-
-# Copy the example environment file
+# Copy the example file
 cp .env.example .env
 
 # If there are issues, edit .env to set your data directory path
 # Example: DATA_DIR=/Users/yourname/project/data
 ```
 
-### 3. Pre-commit Setup (first time only)
+### 4. Run Docker and Start Dashboard
+Type the following command to download the dependencies, build the Docker container, and start the app. *Note: This may take 5–10 minutes the first time you run it as it downloads and processes large files.*
+
+The Docker container must be first built before the app can be run. To build the container AND run the app, run:
 ```bash
-# Inside container:
-cd src
-pre-commit install
-exit
+make build-run
 ```
 
-### 4. Start Dashboard
+Once the container is built, there is no need to build it again. To run the app after the container has been built, run:
 ```bash
-make run-interactive
+make run-only
+```
+for faster load times.
 
-# To run Python commands, always prefix with `uv run` inside the container:
-# For example: To run the dashboard
-uv run streamlit run Homepage.py
+Alternatively, to build the container only, run:
+```bash
+make build-only
+```
+Afterwards, running
+```bash
+make run-only
+```
+will activate the app.
+
+If successful, the dashboard will be accessible at **http://localhost:8501** on your local browser.
+
+### 5. Closing the App
+When done with the application, you can close it by navigating back to your Terminal(Mac)/PowerShell(Windows) window and pressing `Ctrl + C`.
+
+### 6. Cleaning up
+If desired, empty containers or images can be purged to save disk space.
+
+#### Quick Clean
+Removes running containers and networks.
+Use this if the app is stuck or you want to stop the background process.
+Does NOT delete the large Docker image.
+```bash
+make quick-clean
 ```
 
-If successful, the dashboard will be accessible at **http://localhost:8501**.
+To restart the app, run:
+```bash
+make run-only
+```
+
+#### Deep Clean (Frees Disk Space)
+Removes containers AND the heavy Docker images.
+Use this to free up disk space when you are done with the app.
+```bash
+make deep-clean
+```
+
+The container now must be rebuilt before the app can be run:
+```bash
+make build-run
+```
+or
+```bash
+make build-only
+```
 
 ---
 ## Project Structure
 
 ```
 2025-autumn-bfi/
-├── data/
-│   ├── the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv.    # Original BFI dataset
-│   ├── merged_bfi.csv                      # Merged supplementary and BFI dataset*
-|   ├── raw_data/                        # Raw supplementary data*
-|   │   ├── cbsatocountycrosswalk.csv       # CBSA to county crosswalk*
-|   │   ├── labor_1980.csv                  # 1980 labor data*
-|   │   ├── labor_2022.csv                  # 2022 labor data*
-|   │   ├── pop_1980.csv                    # 1980 population data*
-|   │   └── pop_2022.csv                    # 2022 population data*
-├── docs/                                # Documentation
+.
+├── data/                                   # Main data storage
+│   ├── combined_US_regions_auto.geojson    # Processed map geometry (States + MSAs) *
+│   ├── merged_bfi.csv                      # Final merged dataset for analysis *
+│   ├── merged_healthcare_jobs_with_gdp.csv # Intermediate dataset linking Jobs to GDP *
+│   ├── msa_gdp_percent_change.csv          # Calculated GDP growth metrics *
+│   └── the_rise_of_healthcare_jobs...csv   # Original BFI working paper dataset
+├── docs/                                   # Project documentation
+│   ├── Codebook.xlsx                       # Variable definitions for merged_bfi.csv
 │   └── DataDictionary.pdf                  # Variable definitions for original BFI data
-│   └── Codebook.xlsx                       # Variable definitions for merged_bfi.csv
-├── gt_utilities/                        # Healthcare jobs analysis utilities
-│   ├── build_census_bea_resources.py       # Build population and labor data tables
-│   ├── census_bea_pipeline.py              # Produces merged_bfi.csv and MSA tables
-|   ├── charts.py                           # Visualization functions
-│   ├── clean_census_bea_data.py            # Cleans raw supplementary data
-|   ├── config.py                           # Configuration file for MSA dashboard
-│   ├── data_prep_utils.py                  # Functions for ZIP-based shapefile processing
-│   ├── demographics.py                     # Demographics comparison for MSA dashboard
-│   ├── get_census_bea_data.py              # Obtains raw supplementary data
-│   ├── loaders.py                          # Data loading utilities for MSA dashboard
-│   ├── map_visualization_helper.py         # Help visualize MSA data on MapLibre
-│   ├── merge_census_bea_data.py            # Merges cleaned supplementary data with BFI
-├── notebooks/                           # Jupyter notebooks for exploration
-│   ├── Test.ipynb                          # Example demonstrating using file structure
-│   └── codetesting.ipynb
-├── pages/                              # Dashboard page configurations
-│   ├── 1_Guided_Tour.py                    # Guided exploration mode
-│   └── 2_Freeroam.py                       # Free exploration mode
-├── .dockerignore                       # File types ignored by Docker
-├── .env.example                        # Example of .env for user to copy
-├── .gitattributes                      # Line ending normalization
-├── .gitignore                          # File types ignord by git
-├── .pre-commit-config.yaml             # Defines automated checks before committing code
-├── DataPolicy.md                       # Data privacy and security information
-├── Dockerfile                          # Docker configuration
-├── Homepage.py                         # Main Streamlit entry point
-├── LICENSE                             # Code license
-├── Makefile                            # Build automation
-├── README.md                           # This file
-├── dataprep.py                         # Data preprocessing script
-├── docker-compose.yaml                 # Container orchestration
-├── pyproject.toml                      # Python dependencies (uv)
-└── test_chart.html                     # Test chart
+├── gt_utilities/                           # Custom Python package for app logic
+│   ├── __init__.py                         # Package initialization and logging setup
+│   ├── build_census_bea_resources.py       # (Builder) Logic to aggregate final analytical tables
+│   ├── census_bea_pipeline.py              # (Orchestrator) Main pipeline controller script
+│   ├── charts.py                           # Altair chart generation functions
+│   ├── clean_census_bea_data.py            # (Cleaner) Logic to clean raw Census/BLS data
+│   ├── config.py                           # Global file paths, URLs, and constants
+│   ├── dataprep_utils.py                   # Helpers for Shapefiles and GDP API interaction
+│   ├── demographics.py                     # Logic for demographic comparison tables
+│   ├── get_census_bea_data.py              # (Getter) Functions to download raw data
+│   ├── loaders.py                          # Data loading/caching for Streamlit
+│   ├── map_visualization_helper.py         # Plotly map and scatterplot generation
+│   └── merge_census_bea_data.py            # (Merger) Logic to join datasets together
+├── pages/                                  # Streamlit Multipage App Sub-pages
+│   ├── 1_Guided_Tour.py                    # The narrative/storytelling dashboard page
+│   └── 2_Freeroam.py                       # The interactive explorer dashboard page
+├── dataprep.py                             # Entry point script to run the full data pipeline
+├── docker-compose.yaml                     # Defines services, volumes, and ports for Docker
+├── Dockerfile                              # Instructions to build the Python environment
+├── Homepage.py                             # Main Entry Point for the Streamlit App
+├── LICENSE                                 # MIT License file
+├── Makefile                                # Shortcuts for building/running (e.g., `make build-run`)
+├── pyproject.toml                          # Python project configuration and dependencies
+└── README.md                               # This file
 ```
-#### * Created once code is run
+#### * Created when container is built
 ---
 
 ## Data
@@ -158,7 +192,6 @@ Builds an image with:
 
 ### Container Ports
 - **8501**: Streamlit dashboard
-- **8888**: Jupyter Lab (when running with `make run-notebooks`)
 
 ### Volume Mounts
 - Source code: Container `/project/` → Host repo root
@@ -215,18 +248,18 @@ docker compose logs -f
 
 ### Optional: Fetching New BEA GDP/Earnings Data via API
 
-The project includes helper utilities that can automatically pull updated GDP and industry-level data from the Bureau of Economic Analysis (BEA).  
+The project includes helper utilities that can automatically pull updated GDP and industry-level data from the Bureau of Economic Analysis (BEA).
 If you plan to regenerate or extend the dataset, you may create a free BEA API key and store it in your `.env` file:
 
-1. Request a key here: https://apps.bea.gov/api/signup/  
+1. Request a key here: https://apps.bea.gov/api/signup/
 2. Add it to `.env`:
 
 ## Project Team
 
-**Data Science Clinic** - University of Chicago  
+**Data Science Clinic** - University of Chicago
 Collaboration with the **Becker Friedman Institute for Economics**
 
-Students Contributors:
+Student Contributors:
 - Shumaila Abbasi (shumaila9467)
 - Ryan Lee (Rjlee22)
 - Nandi Xu (TGPD5)
@@ -244,4 +277,4 @@ External BFI Mentors:
 
 ---
 
-**Last Updated**: December 2025
+**Last Updated**: December 10, 2025

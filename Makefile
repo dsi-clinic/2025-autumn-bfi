@@ -28,14 +28,14 @@ mount_data := -v $(DATA_DIR):/project/data
 build-only:
 	docker compose build
 
-run-interactive: build-only
+build-run: build-only
 	docker run -p 8501:8501 2025-autumn-bfi-app
 
-run-notebooks: build-only
-	docker compose run --rm -p 8888:8888 -t $(mount_data) $(project_name) uv run jupyter lab --port=8888 --ip='*' --NotebookApp.token='' --NotebookApp.password='' --no-browser --allow-root
+run-only:
+	docker run -p 8501:8501 2025-autumn-bfi-app
 
-clean:
+quick-clean:
+	docker compose down --remove-orphans
+
+deep-clean:
 	docker compose down --rmi all --volumes --remove-orphans
-	docker image prune -f
-
-
