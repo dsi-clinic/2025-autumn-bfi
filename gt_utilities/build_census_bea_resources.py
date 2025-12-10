@@ -11,31 +11,31 @@ from pathlib import Path
 
 import pandas as pd
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data")).resolve()
-RAW_DATA_DIR = DATA_DIR / "raw_data"
+DATA_DIR: Path = Path(os.environ.get("DATA_DIR", "data")).resolve()
+RAW_DATA_DIR: Path = DATA_DIR / "raw_data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Initialize Logger
-LOGGER = logging.getLogger(__name__)
+LOGGER: logging.Logger = logging.getLogger(__name__)
 
 
-def make_msa_tables(final_pop_df: pd.DataFrame) -> dict:  # put this into make_resources
+def make_msa_tables(final_pop_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """Builds MSA-level race/sex proportion tables and logs all steps.
 
     Parameters:
         final_pop_df (pd.DataFrame): Cleaned 1980 population dataset with MSA codes.
 
     Returns:
-        dict: mapping {msa_title: DataFrame of 2x3 proportions}
+        dict[str, pd.DataFrame]: mapping {msa_title: DataFrame of 2x3 proportions}
     """
     LOGGER.info("Building MSA proportion tables...")
 
-    msa_tables = {}
+    msa_tables: dict[str, pd.DataFrame] = {}
 
     try:
         # Aggregate totals by MSA
-        agg_cols = [
+        agg_cols: list[str] = [
             "TOT_POP",
             "TOT_MALE",
             "TOT_FEMALE",
@@ -52,27 +52,29 @@ def make_msa_tables(final_pop_df: pd.DataFrame) -> dict:  # put this into make_r
             LOGGER.error("Missing columns required for proportion tables.")
             return {}
 
-        msa_totals = final_pop_df.groupby("metro_title", as_index=False)[agg_cols].sum()
+        msa_totals: pd.DataFrame = final_pop_df.groupby("metro_title", as_index=False)[
+            agg_cols
+        ].sum()
 
         for _, row in msa_totals.iterrows():
-            msa = row["metro_title"]
+            msa: str = row["metro_title"]
 
             # Avoid Division by Zero
-            t_male = row["TOT_MALE"] if row["TOT_MALE"] > 0 else 1
-            t_female = row["TOT_FEMALE"] if row["TOT_FEMALE"] > 0 else 1
+            t_male: float = row["TOT_MALE"] if row["TOT_MALE"] > 0 else 1
+            t_female: float = row["TOT_FEMALE"] if row["TOT_FEMALE"] > 0 else 1
 
-            male_stats = [
+            male_stats: list[float] = [
                 row["WAC_MALE"] / t_male,
                 row["BAC_MALE"] / t_male,
                 row["OTHER_MALE"] / t_male,
             ]
-            female_stats = [
+            female_stats: list[float] = [
                 row["WAC_FEMALE"] / t_female,
                 row["BAC_FEMALE"] / t_female,
                 row["OTHER_FEMALE"] / t_female,
             ]
 
-            table = pd.DataFrame(
+            table: pd.DataFrame = pd.DataFrame(
                 [male_stats, female_stats],
                 index=["Male", "Female"],
                 columns=["White", "Black", "Other"],
@@ -88,7 +90,7 @@ def make_msa_tables(final_pop_df: pd.DataFrame) -> dict:  # put this into make_r
         return {}
 
 
-def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> dict:
+def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """Aggregates industry data by MSA and year, computes summary tables.
 
     Summary tables contain: (establishments, employment, wages, weekly wages),
@@ -102,9 +104,9 @@ def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> dict:
     """
     LOGGER.info("Starting MSA industry table construction...")
 
-    msa_tables = {}
+    msa_tables: dict[str, pd.DataFrame] = {}
 
-    required_cols = [
+    required_cols: list[str] = [
         "metro13",
         "metro_title",
         "year",
@@ -115,14 +117,14 @@ def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> dict:
     ]
 
     # Check if cols exist
-    missing = [c for c in required_cols if c not in merged_all_ind.columns]
+    missing: list[str] = [c for c in required_cols if c not in merged_all_ind.columns]
     if missing:
         LOGGER.error("Missing required columns for aggregation: %s", missing)
         return {}
 
     # aggregate by MSA + year
     try:
-        agg_df = merged_all_ind.groupby(
+        agg_df: pd.DataFrame = merged_all_ind.groupby(
             ["metro13", "metro_title", "year"], as_index=False
         ).agg(
             {
@@ -136,7 +138,7 @@ def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> dict:
 
         # build tables for each MSA
         for msa, sub in agg_df.groupby("metro_title"):
-            table = sub.set_index("year")[
+            table: pd.DataFrame = sub.set_index("year")[
                 [
                     "annual_avg_estabs_count",
                     "annual_avg_emplvl",
@@ -153,7 +155,7 @@ def build_msa_industry_tables(merged_all_ind: pd.DataFrame) -> dict:
             ]
 
             # if two or more years exist, compute percent change
-            years = sorted(sub["year"].unique())
+            years: list[int] = sorted(sub["year"].unique())
             if len(years) > 1:
                 y0, y1 = years[0], years[-1]
                 table["% Change"] = (table[y1] - table[y0]) / table[y0] * 100
@@ -191,12 +193,12 @@ def build_bfi_pop_labor(
 
     # 1. Build BFI years frame
     try:
-        bfi_df1980 = bfi_df.copy()
+        bfi_df1980: pd.DataFrame = bfi_df.copy()
         bfi_df1980["year"] = 1980
-        bfi_df2022 = bfi_df.copy()
+        bfi_df2022: pd.DataFrame = bfi_df.copy()
         bfi_df2022["year"] = 2022
 
-        bfi_yrs = pd.concat([bfi_df1980, bfi_df2022], ignore_index=True)
+        bfi_yrs: pd.DataFrame = pd.concat([bfi_df1980, bfi_df2022], ignore_index=True)
         LOGGER.info("Constructed BFI years dataframe. Rows: %d", len(bfi_yrs))
     except Exception:
         LOGGER.error("Failed while constructing BFI years dataframe.", exc_info=True)
@@ -206,15 +208,17 @@ def build_bfi_pop_labor(
     try:
         # Keep only AGEGRP 0 for 1980 total population
         if "AGEGRP" in final_pop_1980.columns:
-            tot_final_pop_1980 = final_pop_1980.query("`AGEGRP` == 0").copy()
+            tot_final_pop_1980: pd.DataFrame = final_pop_1980.query(
+                "`AGEGRP` == 0"
+            ).copy()
         else:
-            tot_final_pop_1980 = final_pop_1980.copy()
+            tot_final_pop_1980: pd.DataFrame = final_pop_1980.copy()
             LOGGER.warning("AGEGRP not found in 1980 pop, skipping filter.")
 
-        min_df_2022_copy = min_df_2022.copy()
+        min_df_2022_copy: pd.DataFrame = min_df_2022.copy()
         min_df_2022_copy["year"] = 2022
 
-        pop_df = pd.concat(
+        pop_df: pd.DataFrame = pd.concat(
             [tot_final_pop_1980, min_df_2022_copy],
             ignore_index=True,
             axis=0,
@@ -228,7 +232,7 @@ def build_bfi_pop_labor(
     # 3. Merge BFI with population and industry data
     try:
         LOGGER.info("Merging BFI with population data...")
-        new_bfi_df = bfi_yrs.merge(
+        new_bfi_df: pd.DataFrame = bfi_yrs.merge(
             pop_df.drop(columns="metro_title", errors="ignore"),
             on=["metro13", "year"],
             how="left",
@@ -238,7 +242,7 @@ def build_bfi_pop_labor(
         LOGGER.info("Merging BFI+population with industry data...")
 
         # Select available industry columns
-        ind_cols = [
+        ind_cols: list[str] = [
             "metro13",
             "year",
             "annual_avg_estabs_count",
@@ -246,7 +250,9 @@ def build_bfi_pop_labor(
             "total_annual_wages",
             "annual_avg_wkly_wage",
         ]
-        available_ind_cols = [c for c in ind_cols if c in merged_all_ind.columns]
+        available_ind_cols: list[str] = [
+            c for c in ind_cols if c in merged_all_ind.columns
+        ]
 
         new_bfi_df = new_bfi_df.merge(
             merged_all_ind[available_ind_cols],
@@ -256,7 +262,7 @@ def build_bfi_pop_labor(
         LOGGER.info("After industry merge, final rows: %d", len(new_bfi_df))
 
         # Rename cols if they exist
-        rename_map = {
+        rename_map: dict[str, str] = {
             "race/sex indicator": "race/sex_indicator",
             "total population": "total_population",
         }
@@ -264,7 +270,7 @@ def build_bfi_pop_labor(
 
         # Write to CSV
         if output_path is not None:
-            output_path = Path(output_path)
+            output_path: Path = Path(output_path)
             new_bfi_df.to_csv(output_path, index=False)
             LOGGER.info("Wrote combined BFI dataset to %s", output_path)
 

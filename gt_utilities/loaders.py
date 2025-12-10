@@ -28,7 +28,7 @@ def try_read_csv(path: Path, file_label: str = "file") -> pd.DataFrame | None:
 
     if path.exists():
         try:
-            df_expanded = pd.read_csv(path)
+            df_expanded: pd.DataFrame = pd.read_csv(path)
             logging.info(f"✓ Loaded {file_label} from {path}")
             return df_expanded
         except Exception as e:
@@ -48,7 +48,7 @@ def load_main_data(data_paths: Path) -> pd.DataFrame | None:
     Returns:
         Preprocessed DataFrame or None if loading fails
     """
-    df_data_paths = try_read_csv(data_paths, "main MSA dataset")
+    df_data_paths: pd.DataFrame | None = try_read_csv(data_paths, "main MSA dataset")
 
     if df_data_paths is None:
         return None
@@ -78,7 +78,7 @@ def load_all_datasets(
     Returns:
         Dictionary with dataset names as keys and DataFrames as values
     """
-    datasets = {}
+    datasets: dict[str, pd.DataFrame | None] = {}
 
     # Load main dataset (required)
     datasets["main"] = load_main_data(data_paths)

@@ -13,13 +13,13 @@ import pandas as pd
 
 from gt_utilities import get_census_bea_data as getter
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data")).resolve()
-RAW_DATA_DIR = DATA_DIR / "raw_data"
+DATA_DIR: Path = Path(os.environ.get("DATA_DIR", "data")).resolve()
+RAW_DATA_DIR: Path = DATA_DIR / "raw_data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Initialize Logger
-LOGGER = logging.getLogger(__name__)
+LOGGER: logging.Logger = logging.getLogger(__name__)
 
 
 def merge_pop_1980_with_cbsa(
@@ -37,7 +37,7 @@ def merge_pop_1980_with_cbsa(
     LOGGER.info("Merging 1980 Pop with CBSA Crosswalk...")
 
     try:
-        merged = pop_1980.merge(
+        merged: pd.DataFrame = pop_1980.merge(
             msa_county[["cbsacode", "fips", "cbsaname"]],
             left_on="FIPS State and County Codes",
             right_on="fips",
@@ -61,7 +61,7 @@ def merge_pop_1980_with_bfi(
     LOGGER.info("Filtering 1980 Pop to match BFI MSAs...")
 
     try:
-        merged_pop_1980 = msa_pop_1980.merge(
+        merged_pop_1980: pd.DataFrame = msa_pop_1980.merge(
             bfi_df[["metro13", "metro_title"]],
             left_on="cbsacode",
             right_on="metro13",
@@ -84,17 +84,17 @@ def merge_pop_2022_with_bfi(
     LOGGER.info("Beginning merge of 2022 population data with BFI MSA information.")
 
     try:
-        before_rows = pop2.shape[0]
+        before_rows: int = pop2.shape[0]
         LOGGER.info("msa_pop_2022 has %d rows before merge.", before_rows)
 
-        merged_pop_2022 = pop2.merge(
+        merged_pop_2022: pd.DataFrame = pop2.merge(
             bfi_df[["metro13", "metro_title"]],
             left_on="CBSA",
             right_on="metro13",
             how="inner",
         ).drop(columns=["CBSA", "NAME"])
 
-        after_rows = merged_pop_2022.shape[0]
+        after_rows: int = merged_pop_2022.shape[0]
         LOGGER.info(
             "Merge complete. Rows: %d -> %d (kept %.2f%%).",
             before_rows,
@@ -121,18 +121,18 @@ def combine_industries() -> pd.DataFrame | None:
     """Combines 1980 and 2022 industry labor datasets."""
     LOGGER.info("Combining 1980 and 2022 industry datasets...")
 
-    ind_1980 = getter.get_industry(1980)
+    ind_1980: pd.DataFrame | None = getter.get_industry(1980)
     if ind_1980 is None:
         LOGGER.error("Failed to load 1980 industry data.")
         return None
 
-    ind_2022 = getter.get_industry(2022)
+    ind_2022: pd.DataFrame | None = getter.get_industry(2022)
     if ind_2022 is None:
         LOGGER.error("Failed to load 2022 industry data.")
         return None
 
     try:
-        all_ind = pd.concat([ind_1980, ind_2022], ignore_index=True)
+        all_ind: pd.DataFrame = pd.concat([ind_1980, ind_2022], ignore_index=True)
         LOGGER.info(
             "Successfully combined industry datasets. Final row count: %d", len(all_ind)
         )
@@ -162,9 +162,9 @@ def merge_industry_with_msa(
     LOGGER.info("Starting merge of industry data with MSA crosswalk...")
 
     # check required columns
-    required_cols_ind = {"area_fips"}
-    required_cols_cross = {"cbsacode", "fips", "cbsaname"}
-    required_cols_bfi = {"metro13", "metro_title"}
+    required_cols_ind: set[str] = {"area_fips"}
+    required_cols_cross: set[str] = {"cbsacode", "fips", "cbsaname"}
+    required_cols_bfi: set[str] = {"metro13", "metro_title"}
 
     if not required_cols_ind.issubset(all_ind.columns):
         LOGGER.error("Missing required columns in industry data: %s", required_cols_ind)
@@ -182,7 +182,7 @@ def merge_industry_with_msa(
 
     # first merge: industry ↔ MSA crosswalk
     try:
-        msa_all_ind = all_ind.merge(
+        msa_all_ind: pd.DataFrame = all_ind.merge(
             msa_county[["cbsacode", "fips", "cbsaname"]],
             left_on="area_fips",
             right_on="fips",
@@ -200,7 +200,7 @@ def merge_industry_with_msa(
 
     # second merge: keep only MSAs in BFI dataset
     try:
-        merged_all_ind = msa_all_ind.merge(
+        merged_all_ind: pd.DataFrame = msa_all_ind.merge(
             bfi_df[["metro13", "metro_title"]],
             left_on="cbsacode",
             right_on="metro13",
@@ -220,7 +220,7 @@ def merge_industry_with_msa(
 
     # keep only Total Covered
     try:
-        before = len(merged_all_ind)
+        before: int = len(merged_all_ind)
         if "own_title" in merged_all_ind.columns:
             merged_all_ind = merged_all_ind.query('`own_title` == "Total Covered"')
             LOGGER.info(

@@ -19,12 +19,12 @@ def prepare_1980_tables(min_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     Returns:
         Dictionary mapping MSA names to demographics proportion tables
     """
-    msa_totals = min_df.groupby("metro_title", as_index=False)[
+    msa_totals: pd.DataFrame = min_df.groupby("metro_title", as_index=False)[
         DEMOGRAPHIC_CATEGORIES
     ].sum()
 
     # Calculate male proportions
-    male_props = msa_totals[
+    male_props: pd.DataFrame = msa_totals[
         ["metro_title", "white male", "black male", "other races male", "TOT_MALE"]
     ].copy()
     male_props[["White", "Black", "Other"]] = male_props[
@@ -32,8 +32,8 @@ def prepare_1980_tables(min_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     ].div(male_props["TOT_MALE"], axis=0)
     male_props = male_props[["metro_title", "White", "Black", "Other"]]
 
-    # Calculate male proportions
-    female_props = msa_totals[
+    # Calculate female proportions
+    female_props: pd.DataFrame = msa_totals[
         [
             "metro_title",
             "white female",
@@ -48,16 +48,16 @@ def prepare_1980_tables(min_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     female_props = female_props[["metro_title", "White", "Black", "Other"]]
 
     # Combine into tables
-    msa_tables = {}
+    msa_tables: dict[str, pd.DataFrame] = {}
     for msa in msa_totals["metro_title"]:
-        male_row = male_props.loc[
+        male_row: pd.Series = male_props.loc[
             male_props["metro_title"] == msa, ["White", "Black", "Other"]
         ].squeeze()
-        female_row = female_props.loc[
+        female_row: pd.Series = female_props.loc[
             female_props["metro_title"] == msa, ["White", "Black", "Other"]
         ].squeeze()
 
-        proportions = pd.DataFrame(
+        proportions: pd.DataFrame = pd.DataFrame(
             [male_row.to_numpy(), female_row.to_numpy()],
             index=["Male", "Female"],
             columns=["White", "Black", "Other"],
@@ -81,12 +81,12 @@ def prepare_tables(min_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     Returns:
         Dictionary mapping MSA names to demographics proportion tables
     """
-    msa_totals = min_df.groupby("metro_title", as_index=False)[
+    msa_totals: pd.DataFrame = min_df.groupby("metro_title", as_index=False)[
         DEMOGRAPHIC_AGG_COLS
     ].sum()
 
     # Calculate male proportions
-    male_props = msa_totals[
+    male_props: pd.DataFrame = msa_totals[
         ["metro_title", "WAC_MALE", "BAC_MALE", "OTHER_MALE", "TOT_MALE"]
     ].copy()
     male_props[["White", "Black", "Other"]] = male_props[
@@ -95,7 +95,7 @@ def prepare_tables(min_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     male_props = male_props[["metro_title", "White", "Black", "Other"]]
 
     # Calculate female proportions
-    female_props = msa_totals[
+    female_props: pd.DataFrame = msa_totals[
         ["metro_title", "WAC_FEMALE", "BAC_FEMALE", "OTHER_FEMALE", "TOT_FEMALE"]
     ].copy()
     female_props[["White", "Black", "Other"]] = female_props[
@@ -104,16 +104,16 @@ def prepare_tables(min_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     female_props = female_props[["metro_title", "White", "Black", "Other"]]
 
     # Combine into tables
-    msa_tables = {}
+    msa_tables: dict[str, pd.DataFrame] = {}
     for msa in msa_totals["metro_title"]:
-        male_row = male_props.loc[
+        male_row: pd.Series = male_props.loc[
             male_props["metro_title"] == msa, ["White", "Black", "Other"]
         ].squeeze()
-        female_row = female_props.loc[
+        female_row: pd.Series = female_props.loc[
             female_props["metro_title"] == msa, ["White", "Black", "Other"]
         ].squeeze()
 
-        proportions = pd.DataFrame(
+        proportions: pd.DataFrame = pd.DataFrame(
             [male_row.to_numpy(), female_row.to_numpy()],
             index=["Male", "Female"],
             columns=["White", "Black", "Other"],
@@ -146,13 +146,13 @@ def render_demographics_comparison(
     # Prepare tables
     merged_pop["year"] = pd.to_numeric(merged_pop["year"], errors="coerce")
 
-    merged_pop_2022 = merged_pop[merged_pop["year"] == latest_data_year]
-    merged_pop_1980 = merged_pop[merged_pop["year"] == earliest_data_year]
-    msa_tables_2022 = prepare_tables(merged_pop_2022)
-    msa_tables_1980 = prepare_1980_tables(merged_pop_1980)
+    merged_pop_2022: pd.DataFrame = merged_pop[merged_pop["year"] == latest_data_year]
+    merged_pop_1980: pd.DataFrame = merged_pop[merged_pop["year"] == earliest_data_year]
+    msa_tables_2022: dict[str, pd.DataFrame] = prepare_tables(merged_pop_2022)
+    msa_tables_1980: dict[str, pd.DataFrame] = prepare_1980_tables(merged_pop_1980)
 
     # Get common MSAs and filter out states since states have no demographics data
-    common_msas = [
+    common_msas: list[str] = [
         msa
         for msa in sorted(set(msa_tables_1980.keys()) & set(msa_tables_2022.keys()))
         if len(msa) > sort_states_constant
@@ -170,7 +170,7 @@ def render_demographics_comparison(
     )
 
     # Dropdown selection
-    selected_msa = st.selectbox(
+    selected_msa: str = st.selectbox(
         "Select a Metropolitan Statistical Area (MSA):", common_msas, index=0
     )
 

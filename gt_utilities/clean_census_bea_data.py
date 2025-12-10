@@ -10,13 +10,13 @@ from pathlib import Path
 
 import pandas as pd
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", "data")).resolve()
-RAW_DATA_DIR = DATA_DIR / "raw_data"
+DATA_DIR: Path = Path(os.environ.get("DATA_DIR", "data")).resolve()
+RAW_DATA_DIR: Path = DATA_DIR / "raw_data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Initialize Logger
-LOGGER = logging.getLogger(__name__)
+LOGGER: logging.Logger = logging.getLogger(__name__)
 
 
 def clean_bfi(bfi_df: pd.DataFrame) -> pd.DataFrame | None:
@@ -54,7 +54,7 @@ def clean_pop_1980(pop: pd.DataFrame) -> pd.DataFrame | None:
     zeros if original number not 5 characters long).
     """
     LOGGER.info("Cleaning 1980 population data...")
-    required_cols = ["Year of Estimate", "FIPS State and County Codes"]
+    required_cols: list[str] = ["Year of Estimate", "FIPS State and County Codes"]
     for col in required_cols:
         if col not in pop.columns:
             LOGGER.error("Missing required column '%s' in population data.", col)
@@ -62,12 +62,12 @@ def clean_pop_1980(pop: pd.DataFrame) -> pd.DataFrame | None:
 
     try:
         # Filter 1980
-        pop_1980 = pop.query(
+        pop_1980: pd.DataFrame = pop.query(
             "`Year of Estimate` == 1980"
         ).copy()  # Use .copy() to avoid SettingWithCopy warning
 
         # Calculate Total Population (Summing cols 3 onwards)
-        cols_to_sum = list(pop_1980.columns)[3:]
+        cols_to_sum: list[str] = list(pop_1980.columns)[3:]
         pop_1980["Total Population"] = pop_1980[cols_to_sum].sum(axis=1)
 
         # Format FIPS
@@ -89,7 +89,7 @@ def clean_cbsa_county_crosswalk(msa_county: pd.DataFrame) -> pd.DataFrame | None
     """Creates FIPS codes and cleans CBSA codes."""
     LOGGER.info("Cleaning crosswalk data...")
 
-    required = ["fipst", "fipscounty", "cbsa"]
+    required: list[str] = ["fipst", "fipscounty", "cbsa"]
     if not all(col in msa_county.columns for col in required):
         LOGGER.error("Missing columns in crosswalk. Required: %s", required)
         return None
@@ -127,10 +127,15 @@ def aggregate_pop_1980(merged_pop_1980: pd.DataFrame) -> pd.DataFrame | None:
     """
     LOGGER.info("Aggregating 1980 Pop to MSA level...")
 
-    group_cols = ["Year of Estimate", "Race/Sex Indicator", "metro13", "metro_title"]
+    group_cols: list[str] = [
+        "Year of Estimate",
+        "Race/Sex Indicator",
+        "metro13",
+        "metro_title",
+    ]
 
     try:
-        pop_1980_agg = (
+        pop_1980_agg: pd.DataFrame = (
             merged_pop_1980.drop(columns=["fips"], errors="ignore")
             .groupby(group_cols, as_index=False)
             .sum(numeric_only=True)
@@ -152,13 +157,13 @@ def transform_pop_1980_to_final(pop_1980_agg: pd.DataFrame) -> pd.DataFrame | No
 
     try:
         # Construct age groups list
-        age_groups_with_total = ["Total Population"] + pop_1980_agg.columns[
+        age_groups_with_total: list[str] = ["Total Population"] + pop_1980_agg.columns[
             3:-4
         ].to_list()
-        id_vars = ["Year of Estimate", "metro13", "metro_title"]
+        id_vars: list[str] = ["Year of Estimate", "metro13", "metro_title"]
 
         # Melt to long
-        long_df = pop_1980_agg.melt(
+        long_df: pd.DataFrame = pop_1980_agg.melt(
             id_vars=id_vars + ["Race/Sex Indicator"],
             value_vars=age_groups_with_total,
             var_name="AGEGRP",
@@ -172,20 +177,20 @@ def transform_pop_1980_to_final(pop_1980_agg: pd.DataFrame) -> pd.DataFrame | No
 
         # Compute Totals
         # 1. MSA Totals
-        msa_totals = long_df.groupby(
+        msa_totals: pd.DataFrame = long_df.groupby(
             id_vars + ["AGEGRP"], as_index=False, observed=True
         )["Population"].sum()
         msa_totals["Race/Sex Indicator"] = "MSA Population"
 
         # 2. Gender Totals
-        total_male = (
+        total_male: pd.DataFrame = (
             long_df[long_df["Race/Sex Indicator"].str.endswith(" male")]
             .groupby(id_vars + ["AGEGRP"], as_index=False, observed=True)["Population"]
             .sum()
         )
         total_male["Race/Sex Indicator"] = "Total male"
 
-        total_female = (
+        total_female: pd.DataFrame = (
             long_df[long_df["Race/Sex Indicator"].str.endswith(" female")]
             .groupby(id_vars + ["AGEGRP"], as_index=False, observed=True)["Population"]
             .sum()
@@ -193,12 +198,12 @@ def transform_pop_1980_to_final(pop_1980_agg: pd.DataFrame) -> pd.DataFrame | No
         total_female["Race/Sex Indicator"] = "Total female"
 
         # Combine
-        long_augmented = pd.concat(
+        long_augmented: pd.DataFrame = pd.concat(
             [long_df, msa_totals, total_male, total_female], ignore_index=True
         )
 
         # Pivot to Wide
-        pop_1980_wide = long_augmented.pivot_table(
+        pop_1980_wide: pd.DataFrame = long_augmented.pivot_table(
             index=id_vars + ["AGEGRP"],
             columns="Race/Sex Indicator",
             values="Population",
@@ -207,7 +212,9 @@ def transform_pop_1980_to_final(pop_1980_agg: pd.DataFrame) -> pd.DataFrame | No
         pop_1980_wide.columns.name = None
 
         # Map AGEGRP to IDs
-        age_id_map = {name: i for i, name in enumerate(age_groups_with_total)}
+        age_id_map: dict[str, int] = {
+            name: i for i, name in enumerate(age_groups_with_total)
+        }
         pop_1980_wide["AGEGRP"] = (
             pop_1980_wide["AGEGRP"].map(age_id_map).astype("Int64")
         )
@@ -222,7 +229,7 @@ def transform_pop_1980_to_final(pop_1980_agg: pd.DataFrame) -> pd.DataFrame | No
 
 def rename_pop_1980_columns(final_pop_1980: pd.DataFrame) -> pd.DataFrame | None:
     """Renames columns in the 1980 final population table to match 2022 naming."""
-    rename_map = {
+    rename_map: dict[str, str] = {
         "MSA Population": "TOT_POP",
         "Total male": "TOT_MALE",
         "Total female": "TOT_FEMALE",
@@ -236,7 +243,7 @@ def rename_pop_1980_columns(final_pop_1980: pd.DataFrame) -> pd.DataFrame | None
     }
 
     try:
-        final_pop_1980_renamed = final_pop_1980.rename(columns=rename_map)
+        final_pop_1980_renamed: pd.DataFrame = final_pop_1980.rename(columns=rename_map)
         LOGGER.info("Renamed 1980 columns to 2022 standard.")
         return final_pop_1980_renamed
     except Exception as exc:
@@ -280,7 +287,7 @@ def organize_pop_2022_minimal(merged_pop_2022: pd.DataFrame) -> pd.DataFrame | N
     """
     LOGGER.info("Beginning 2022 minimal-category restructuring.")
 
-    required_base_cols = [
+    required_base_cols: list[str] = [
         "AGEGRP",
         "metro13",
         "metro_title",
@@ -293,11 +300,11 @@ def organize_pop_2022_minimal(merged_pop_2022: pd.DataFrame) -> pd.DataFrame | N
         "BAC_FEMALE",
     ]
 
-    required_other_m = ["IAC_MALE", "AAC_MALE", "NAC_MALE", "H_MALE"]
-    required_other_f = ["IAC_FEMALE", "AAC_FEMALE", "NAC_FEMALE", "H_FEMALE"]
+    required_other_m: list[str] = ["IAC_MALE", "AAC_MALE", "NAC_MALE", "H_MALE"]
+    required_other_f: list[str] = ["IAC_FEMALE", "AAC_FEMALE", "NAC_FEMALE", "H_FEMALE"]
 
     # --- Check required columns ---
-    missing_cols = [
+    missing_cols: list[str] = [
         c
         for c in required_base_cols + required_other_m + required_other_f
         if c not in merged_pop_2022.columns
@@ -310,9 +317,9 @@ def organize_pop_2022_minimal(merged_pop_2022: pd.DataFrame) -> pd.DataFrame | N
 
     try:
         # filter AGEGRP == 0 (Total Age)
-        before = merged_pop_2022.shape[0]
-        min_df_2022 = merged_pop_2022.query("`AGEGRP` == 0").copy()
-        after = min_df_2022.shape[0]
+        before: int = merged_pop_2022.shape[0]
+        min_df_2022: pd.DataFrame = merged_pop_2022.query("`AGEGRP` == 0").copy()
+        after: int = min_df_2022.shape[0]
         LOGGER.info("Filtered AGEGRP==0: %d -> %d rows.", before, after)
 
         # select base columns

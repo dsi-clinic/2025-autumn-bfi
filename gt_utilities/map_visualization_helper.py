@@ -13,10 +13,10 @@ import streamlit as st
 from gt_utilities import config, find_project_root
 
 # --- Load data ---
-PROJECT_ROOT = find_project_root()
-DATA_DIR = PROJECT_ROOT / "data"
-BFI_SOURCE = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
-chart_color_scale = config.CHART_COLOR_SCALE
+PROJECT_ROOT: Path = find_project_root()
+DATA_DIR: Path = PROJECT_ROOT / "data"
+BFI_SOURCE: Path = DATA_DIR / "the_rise_of_healthcare_jobs_disclosed_data_by_msa.csv"
+chart_color_scale: list[str] = config.CHART_COLOR_SCALE
 
 
 @st.cache_data
@@ -38,7 +38,7 @@ def melt_dataframe(datadf: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
 
 
 @st.cache_data
-def load_geojson(file_path: Path = config.COMBINED_GEOJSON) -> dict:
+def load_geojson(file_path: Path = config.COMBINED_GEOJSON) -> dict[str, Any]:
     """Load combined GeoJSON for US regions. Cached for faster performance.
 
     file_path: Path to geojson file. Default is 'data/combined_US_regions_auto.geojson', generated from dataprep.py.
@@ -59,7 +59,7 @@ def prepare_display_data(
     - pretty_name: The pretty name to assign to the value column for display.
     """
     # Filter for the specific indicator
-    df_selected = df_long[df_long["indicator"] == indicator].copy()
+    df_selected: pd.DataFrame = df_long[df_long["indicator"] == indicator].copy()
 
     # Ensure string type for matching GeoJSON
     df_selected["metro13"] = df_selected["metro13"].astype(str)
@@ -85,7 +85,7 @@ def generate_choropleth_map(
     - pretty_name: Pretty names mapped for display.
     - number_fmt: Formatting number presentation, following format mini-language standards
     """
-    fig = px.choropleth_map(
+    fig: go.Figure = px.choropleth_map(
         df_selected,
         geojson=geojson,
         locations="metro13",
@@ -131,9 +131,9 @@ def generate_bar_chart(
     - pretty_name: The pretty name to assign to the value column for display.
     - number_fmt: Formatting number presentation, following format mini-language standards
     """
-    df_bar_sorted = df_selected.sort_values("value", ascending=False)
+    df_bar_sorted: pd.DataFrame = df_selected.sort_values("value", ascending=False)
 
-    fig_bar = px.bar(
+    fig_bar: go.Figure = px.bar(
         df_bar_sorted,
         x="metro_title",
         y=pretty_name,
@@ -163,21 +163,21 @@ def make_scatterplot(
 ) -> go.Figure:
     """Generates the scatterplot with Z-score coloring, custom R^2 box, and cleaner hover."""
     # Work on a copy to avoid SettingWithCopy warnings on main data
-    plot_df = datadf.copy()
+    plot_df: pd.DataFrame = datadf.copy()
 
     # Handle variable names safely
-    pretty_x = config.VARIABLE_NAME_MAP.get(x_var, x_var) if x_var else ""
-    pretty_y = config.VARIABLE_NAME_MAP.get(y_var, y_var) if y_var else ""
+    pretty_x: str = config.VARIABLE_NAME_MAP.get(x_var, x_var) if x_var else ""
+    pretty_y: str = config.VARIABLE_NAME_MAP.get(y_var, y_var) if y_var else ""
 
     # z-score for both variables for coloring
-    z_x = (plot_df[x_var] - plot_df[x_var].min()) / plot_df[x_var].std()
-    z_y = (plot_df[y_var] - plot_df[y_var].min()) / plot_df[y_var].std()
+    z_x: pd.Series = (plot_df[x_var] - plot_df[x_var].min()) / plot_df[x_var].std()
+    z_y: pd.Series = (plot_df[y_var] - plot_df[y_var].min()) / plot_df[y_var].std()
 
     # Combine them (Euclidean distance from origin in z-space)
     plot_df["z_combined"] = np.sqrt(z_x**2 + z_y**2)
 
     # 1. Create the Base Scatter with Trendline
-    fig_scatter = px.scatter(
+    fig_scatter: go.Figure = px.scatter(
         plot_df,
         x=x_var,
         y=y_var,
@@ -194,10 +194,10 @@ def make_scatterplot(
     # px.get_trendline_results returns a df where the 'px_fit_results' column holds the statsmodels object
     try:
         model_results = px.get_trendline_results(fig_scatter)
-        model = model_results.px_fit_results.iloc[0]
-        r_squared = model.rsquared
-        slope = model.params[1]
-        r2_text = f"R² = {r_squared:.3f}<br>Slope = {slope:.3f}"
+        model: Any = model_results.px_fit_results.iloc[0]
+        r_squared: float = model.rsquared
+        slope: float = model.params[1]
+        r2_text: str = f"R² = {r_squared:.3f}<br>Slope = {slope:.3f}"
     except Exception:
         r2_text = "R² = N/A"
 

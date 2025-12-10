@@ -20,7 +20,7 @@ from gt_utilities.config import (
 )
 
 # Initialize Logger
-LOGGER = logging.getLogger(__name__)
+LOGGER: logging.Logger = logging.getLogger(__name__)
 
 
 def get_census_pop(data_urls: dict[str, str] = RAW_CENSUS_POP_DATA_URLS) -> None:
@@ -32,7 +32,7 @@ def get_census_pop(data_urls: dict[str, str] = RAW_CENSUS_POP_DATA_URLS) -> None
     for url, year in data_urls.items():
         try:
             LOGGER.info("Requesting %s Census data...", year)
-            r = requests.get(url, timeout=30)
+            r: requests.Response = requests.get(url, timeout=30)
             r.raise_for_status()
         except ReadTimeout as exc:
             LOGGER.error(
@@ -67,11 +67,11 @@ def get_ubls_labor(
     https://www.bls.gov/cew/downloadable-data-files.htm
     """
     for zip_url, path in zip_urls.items():
-        year = "1980" if "1980" in zip_url else "2022"
+        year: str = "1980" if "1980" in zip_url else "2022"
 
         try:
             LOGGER.info("Requesting %s Labor data (ZIP)...", year)
-            r = requests.get(zip_url, timeout=30)
+            r: requests.Response = requests.get(zip_url, timeout=30)
             r.raise_for_status()
         except RequestException as exc:
             LOGGER.error(
@@ -116,7 +116,7 @@ def get_uber_county_cbsa_crosswalk(
     """
     try:
         LOGGER.info("Requesting NBER crosswalk data...")
-        r = requests.get(url, timeout=30)
+        r: requests.Response = requests.get(url, timeout=30)
         r.raise_for_status()
     except RequestException:
         LOGGER.error("Failed to download crosswalk data from %s", url, exc_info=True)
@@ -146,7 +146,7 @@ def get_pop_1980() -> pd.DataFrame | None:
     LOGGER.info("Attempting to load 1980 population data from %s", csv_path)
 
     try:
-        pop = pd.read_csv(csv_path, skiprows=5, header=0)
+        pop: pd.DataFrame = pd.read_csv(csv_path, skiprows=5, header=0)
         # Check logic: drop row 0 if it's empty/informational
         if not pop.empty:
             pop = pop.drop(0)
@@ -168,7 +168,7 @@ def get_bfi() -> pd.DataFrame | None:
     LOGGER.info("Loading BFI data from %s", csv_path)
 
     try:
-        bfi_df = pd.read_csv(csv_path)
+        bfi_df: pd.DataFrame = pd.read_csv(csv_path)
         LOGGER.info("Loaded BFI csv. Shape: %s", bfi_df.shape)
         return bfi_df
     except Exception as exc:
@@ -182,7 +182,7 @@ def get_cbsa_county_crosswalk() -> pd.DataFrame | None:
     LOGGER.info("Loading crosswalk from %s", csv_path)
 
     try:
-        msa_county = pd.read_csv(csv_path, encoding="latin1")
+        msa_county: pd.DataFrame = pd.read_csv(csv_path, encoding="latin1")
         LOGGER.info("Loaded crosswalk. Shape: %s", msa_county.shape)
         return msa_county
     except Exception as exc:
@@ -201,7 +201,7 @@ def get_pop_2022() -> pd.DataFrame | None:
 
     # load file
     try:
-        pop2 = pd.read_csv(file_path, encoding="latin1")
+        pop2: pd.DataFrame = pd.read_csv(file_path, encoding="latin1")
         LOGGER.info("Successfully loaded pop_2022.csv with %d rows.", pop2.shape[0])
     except FileNotFoundError:
         LOGGER.error("pop_2022.csv not found at path: %s", file_path)
@@ -211,8 +211,8 @@ def get_pop_2022() -> pd.DataFrame | None:
         return None
 
     # drop irrelevant columns
-    drop_cols = ["MDIV", "LSAD", "SUMLEV"]
-    missing = [c for c in drop_cols if c not in pop2.columns]
+    drop_cols: list[str] = ["MDIV", "LSAD", "SUMLEV"]
+    missing: list[str] = [c for c in drop_cols if c not in pop2.columns]
     if missing:
         LOGGER.warning(
             "Some expected columns not found and cannot be dropped: %s", missing
@@ -227,11 +227,11 @@ def get_pop_2022() -> pd.DataFrame | None:
 
     # filter for 2022
     try:
-        before = pop2.shape[0]
+        before: int = pop2.shape[0]
         # Querying for YEAR == 4 (2022 estimate)
         if "YEAR" in pop2.columns:
             pop2 = pop2.query("`YEAR` == 4").copy()
-            after = pop2.shape[0]
+            after: int = pop2.shape[0]
             LOGGER.info("Filtered YEAR==4 (2022): %d -> %d rows", before, after)
         else:
             LOGGER.warning(
@@ -273,7 +273,7 @@ def get_industry(year: int) -> pd.DataFrame | None:
 
     # load CSV
     try:
-        ind_df = pd.read_csv(file_path)
+        ind_df: pd.DataFrame = pd.read_csv(file_path)
         LOGGER.info("Successfully read labor_%s.csv with shape %s", year, ind_df.shape)
     except FileNotFoundError:
         LOGGER.error("labor_%s.csv not found at %s", year, file_path)
@@ -283,8 +283,8 @@ def get_industry(year: int) -> pd.DataFrame | None:
         return None
 
     # drop unnecessary columns
-    drop_cols = ["own_code", "industry_code", "qtr", "disclosure_code"]
-    existing_drop_cols = [c for c in drop_cols if c in ind_df.columns]
+    drop_cols: list[str] = ["own_code", "industry_code", "qtr", "disclosure_code"]
+    existing_drop_cols: list[str] = [c for c in drop_cols if c in ind_df.columns]
 
     try:
         ind_df = ind_df.drop(columns=existing_drop_cols)
@@ -302,9 +302,9 @@ def get_industry(year: int) -> pd.DataFrame | None:
 
     try:
         # convert to numeric and drop non-numeric codes like 'US000'
-        area_numeric = pd.to_numeric(ind_df["area_fips"], errors="coerce")
+        area_numeric: pd.Series = pd.to_numeric(ind_df["area_fips"], errors="coerce")
 
-        bad_codes = ind_df.loc[area_numeric.isna(), "area_fips"].unique()
+        bad_codes: pd.Series = ind_df.loc[area_numeric.isna(), "area_fips"].unique()
         if len(bad_codes) > 0:
             LOGGER.warning(
                 "Dropping %d rows with non-numeric area_fips in %s data (e.g. %s)",

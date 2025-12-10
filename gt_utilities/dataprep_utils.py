@@ -13,7 +13,7 @@ import requests
 
 from gt_utilities.config import API_KEY, BASE_URL, GDP_FILE
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def download_and_extract_shapefile(
@@ -91,7 +91,7 @@ def convert_shapefiles_to_geojson(
             logger.warning(f"No .shp found in {d!s}; skipping {key}")
             continue
 
-        shp_path = shp_files[0]
+        shp_path: Path = shp_files[0]
         try:
             gdf: gpd.GeoDataFrame = gpd.read_file(shp_path)
         except Exception as exc:
@@ -167,7 +167,7 @@ def build_combined_geojson(
         raise exc
 
     # Filtering MSAs to those present in df_long (Hardcoded according to original Census Bureau files)
-    msa_ids = df_long["metro13"].astype(str).unique()
+    msa_ids: Any = df_long["metro13"].astype(str).unique()
     gdf_msas_filtered: gpd.GeoDataFrame = gdf_msas[
         gdf_msas["CBSAFP"].astype(str).isin(msa_ids)
     ]
@@ -298,7 +298,7 @@ def download_bea_gdp_percent_change(
         )
 
     # Drop the first year (no percent change available)
-    first_col = year_cols[0]
+    first_col: Any = year_cols[0]
     pivot_df = pivot_df.drop(columns=[first_col])
 
     # --- Save results ---------------------------------------------------------
