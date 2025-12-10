@@ -13,7 +13,37 @@ dependencies = [
   "pre-commit~=3.5",
   "coverage~=7.3",
   "pytest~=7.4",
+  "geopandas~=1.1.1",
+  "plotly~=6.4.0",
+  "streamlit~=1.51.0",
+  "statsmodels~=0.14.5",
+  "scipy~=1.16.3",
+  "pyarrow~=21.0.0",
+  "altair~=5.5.0",
+  "vegafusion~=2.0.3",
+  "vl-convert-python~=1.8.0",
+  "matplotlib~=3.10.7",
+  "scikit-learn~=1.7.2",
+  "path~=17.1.1",
+  "requests~=2.32.5",
+  "folium~=0.14.0",
+  "shapely~=2.0.6",
+  "geopy~=2.3.0",
+  "rich~=14.2.0",
 ]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.distutils.egg_info]
+egg_base = "."
 
 [tool.ruff.lint]
 extend-select = [
@@ -34,7 +64,7 @@ extend-select = [
   "Q",      # flake8-quotes - double quotes preferred (like black)
   "S",      # flake8-bandit - security checks
   "UP",     # pyupgrade - requires preferred syntax in newer python versions
-  "YTT",    # flake8-2020 - corrects code that doesn't anticipate 2 digit python minor version  
+  "YTT",    # flake8-2020 - corrects code that doesn't anticipate 2 digit python minor version
 ]
 
 ignore = [

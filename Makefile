@@ -18,27 +18,24 @@ ifeq ($(DATA_DIR),)
 endif
 
 
-# Build Docker image 
+# Build Docker image
 # Global mount for data directory
 mount_data := -v $(DATA_DIR):/project/data
 
 .PHONY: build-only run-interactive run-notebooks test-pipeline clean
 
-# Build Docker image 
-build-only: 
+# Build Docker image
+build-only:
 	docker compose build
 
-run-interactive: build-only	
-	docker compose run -it --rm $(mount_data) $(project_name) /bin/bash
+build-run: build-only
+	docker run -p 8501:8501 2025-autumn-bfi-app
 
-run-notebooks: build-only	
-	docker compose run --rm -p 8888:8888 -t $(mount_data) $(project_name) uv run jupyter lab --port=8888 --ip='*' --NotebookApp.token='' --NotebookApp.password='' --no-browser --allow-root
+run-only:
+	docker run -p 8501:8501 2025-autumn-bfi-app
 
-test-pipeline: build-only
-	docker compose run --rm $(mount_data) $(project_name) uv run python src/utils/pipeline_example.py
+quick-clean:
+	docker compose down --remove-orphans
 
-clean:
+deep-clean:
 	docker compose down --rmi all --volumes --remove-orphans
-	docker image prune -f
-
-
