@@ -122,6 +122,12 @@ make build-only
 2025-autumn-bfi/
 .
 ├── data/                                   # Main data storage
+│   ├── raw_data/                           # Stores raw supplementary data from source *
+|   │   ├── cbsatocountycrosswalk.csv       # MSA to county crosswalk *
+|   │   ├── labor_1980.csv                  # 1980 labor/employment data *
+|   │   ├── labor_2022.csv                  # 2022 labor/employment data *
+|   │   ├── pop_1980.csv                    # 1980 demographic data *
+|   │   └── pop_2022.csv                    # 2022 demographic data *
 │   ├── combined_US_regions_auto.geojson    # Processed map geometry (States + MSAs) *
 │   ├── merged_bfi.csv                      # Final merged dataset for analysis *
 │   ├── merged_healthcare_jobs_with_gdp.csv # Intermediate dataset linking Jobs to GDP *
@@ -177,10 +183,10 @@ make build-only
 - Medicare eligibility rates
 
 ### Data Dictionary
-See [insertcodebook] for complete variable definitions and descriptions.
+See [Codebook](/docs/Codebook.xlsx) for complete variable definitions and descriptions.
 
 ### Data Access & Privacy
-All data handling follows the [Data Science Clinic guidelines](DataPolicy.md). Confidential data should only be used within the project context and stored securely on encrypted drives.
+All data handling follows the Data Science Clinic guidelines. Confidential data should only be used within the project context and stored securely on encrypted drives.
 
 ```
 
