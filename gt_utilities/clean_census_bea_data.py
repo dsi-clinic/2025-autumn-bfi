@@ -89,22 +89,23 @@ def clean_cbsa_county_crosswalk(msa_county: pd.DataFrame) -> pd.DataFrame | None
     """Creates FIPS codes and cleans CBSA codes."""
     LOGGER.info("Cleaning crosswalk data...")
 
-    required = ["fipsstatecode", "fipscountycode", "cbsacode"]
+    required = ["fipst", "fipscounty", "cbsa"]
     if not all(col in msa_county.columns for col in required):
         LOGGER.error("Missing columns in crosswalk. Required: %s", required)
         return None
 
     try:
         # Create full FIPS
-        msa_county["fips"] = pd.to_numeric(
-            msa_county["fipsstatecode"], errors="coerce"
-        ).astype("Int64").astype(str).str.zfill(2) + pd.to_numeric(
-            msa_county["fipscountycode"], errors="coerce"
-        ).astype("Int64").astype(str).str.zfill(3)
+        msa_county["fips"] = (
+            pd.to_numeric(msa_county["fipscounty"], errors="coerce")
+            .astype("Int64")
+            .astype(str)
+            .str.zfill(4)
+        )
 
         # Clean CBSA
         msa_county["cbsacode"] = (
-            pd.to_numeric(msa_county["cbsacode"], errors="coerce")
+            pd.to_numeric(msa_county["cbsa"], errors="coerce")
             .astype("Int64")
             .astype(str)
             .str.zfill(5)

@@ -38,7 +38,7 @@ def merge_pop_1980_with_cbsa(
 
     try:
         merged = pop_1980.merge(
-            msa_county[["cbsacode", "fips", "cbsatitle"]],
+            msa_county[["cbsacode", "fips", "cbsaname"]],
             left_on="FIPS State and County Codes",
             right_on="fips",
             how="inner",
@@ -66,7 +66,7 @@ def merge_pop_1980_with_bfi(
             left_on="cbsacode",
             right_on="metro13",
             how="inner",
-        ).drop(columns=["cbsacode", "cbsatitle"])
+        ).drop(columns=["cbsacode", "cbsaname"])
 
         LOGGER.info(
             "Filtered 1980 data to %d rows matching BFI MSAs.", len(merged_pop_1980)
@@ -163,7 +163,7 @@ def merge_industry_with_msa(
 
     # check required columns
     required_cols_ind = {"area_fips"}
-    required_cols_cross = {"cbsacode", "fips", "cbsatitle"}
+    required_cols_cross = {"cbsacode", "fips", "cbsaname"}
     required_cols_bfi = {"metro13", "metro_title"}
 
     if not required_cols_ind.issubset(all_ind.columns):
@@ -183,7 +183,7 @@ def merge_industry_with_msa(
     # first merge: industry ↔ MSA crosswalk
     try:
         msa_all_ind = all_ind.merge(
-            msa_county[["cbsacode", "fips", "cbsatitle"]],
+            msa_county[["cbsacode", "fips", "cbsaname"]],
             left_on="area_fips",
             right_on="fips",
             how="inner",
@@ -206,7 +206,7 @@ def merge_industry_with_msa(
             right_on="metro13",
             how="inner",
         ).drop(
-            columns=["cbsacode", "cbsatitle", "fips", "industry_title"], errors="ignore"
+            columns=["cbsacode", "cbsaname", "fips", "industry_title"], errors="ignore"
         )
 
         LOGGER.info(

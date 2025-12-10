@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 # Create working directory
 WORKDIR /project
-# WORKDIR /project/src
 
 COPY pyproject.toml .
 COPY uv.lock .
@@ -20,7 +19,6 @@ COPY uv.lock .
 RUN /usr/local/bin/uv venv
 ENV VIRTUAL_ENV=/project/.venv
 ENV PATH="/project/.venv/bin:$PATH"
-# ENV PYTHONPATH=/project
 ENV PYTHONPATH=/project/src
 
 COPY . .
@@ -34,5 +32,3 @@ RUN python dataprep.py
 EXPOSE 8501
 
 CMD ["streamlit", "run", "Homepage.py", "--server.port=8501", "--server.address=0.0.0.0"]
-# ENTRYPOINT ["streamlit", "run", "Homepage.py", "--server.port=8501", "--server.address=0.0.0.0"]
-# CMD ["/bin/bash"]
