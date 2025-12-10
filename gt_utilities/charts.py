@@ -9,8 +9,10 @@ import altair as alt
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 
+from gt_utilities import setup_logger
 from gt_utilities.config import CHART_COLOR_SCALE, VARIABLE_NAME_MAP
 
+LOGGER: logging.Logger = setup_logger(__name__)
 alt.data_transformers.disable_max_rows()
 
 
@@ -44,7 +46,7 @@ def compute_regression_stats(
 
         return f"Slope={slope:.2f}, R²={r2:.2f}"
     except Exception as e:
-        logging.warning(
+        LOGGER.warning(
             f"Could not compute regression stats for {predictor_column} vs {response_column}: {e}"
         )
         return "Regression unavailable"
@@ -74,7 +76,7 @@ def make_colored_reg_chart(
         Configured Altair chart
     """
     try:
-        logging.info(f"Building chart: {response_label} vs {predictor_label}")
+        LOGGER.info(f"Building chart: {response_label} vs {predictor_label}")
 
         base: alt.Chart = alt.Chart(datadf).encode(
             x=alt.X(
@@ -127,7 +129,7 @@ def make_colored_reg_chart(
 
         return chart
     except Exception as e:
-        logging.warning(f"Could not create altair scatterplot: {e}")
+        LOGGER.warning(f"Could not create altair scatterplot: {e}")
         return "scatterplot unavailable"
 
 
@@ -184,7 +186,7 @@ def make_scatter_chart(
             width=330, height=400, title=predictor_label
         )
     except Exception as e:
-        logging.warning(f"Could not create altair scatterplot: {e}")
+        LOGGER.warning(f"Could not create altair scatterplot: {e}")
         return "scatterplot unavailable"
 
 
@@ -241,7 +243,7 @@ def create_demographics_comparison_chart(
 
         return bar_chart
     except Exception as e:
-        logging.warning(f"Could not create altair grouped bar chart: {e}")
+        LOGGER.warning(f"Could not create altair grouped bar chart: {e}")
         return "grouped bar chart unavailable"
 
 
@@ -304,8 +306,8 @@ def plot_top_msas(df: pd.DataFrame, variable: str, top_n: int = 10) -> alt.Chart
             .configure_view(strokeWidth=0)
         )
 
-        logging.info(f"Generated bar chart for top {top_n} MSAs.")
+        LOGGER.info(f"Generated bar chart for top {top_n} MSAs.")
         return chart
     except Exception as e:
-        logging.warning(f"Could not create bar chart for '{variable}': {e}")
+        LOGGER.warning(f"Could not create bar chart for '{variable}': {e}")
         return "bar chart unavailable"

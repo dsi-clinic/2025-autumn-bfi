@@ -10,13 +10,14 @@ from pathlib import Path
 
 import pandas as pd
 
+from gt_utilities import setup_logger
+
+LOGGER: logging.Logger = setup_logger(__name__)
+
 DATA_DIR: Path = Path(os.environ.get("DATA_DIR", "data")).resolve()
 RAW_DATA_DIR: Path = DATA_DIR / "raw_data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-# Initialize Logger
-LOGGER: logging.Logger = logging.getLogger(__name__)
 
 
 def clean_bfi(bfi_df: pd.DataFrame) -> pd.DataFrame | None:

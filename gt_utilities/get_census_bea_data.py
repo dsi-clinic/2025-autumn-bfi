@@ -11,6 +11,7 @@ import pandas as pd
 import requests
 from requests.exceptions import ReadTimeout, RequestException
 
+from gt_utilities import setup_logger
 from gt_utilities.config import (
     DATA_DIR,
     NBER_COUNTY_CBSA_CROSSWALK_URL,
@@ -19,8 +20,7 @@ from gt_utilities.config import (
     UBLA_LABOR_DATA_ZIP_URLS_AND_RAW_PATHS,
 )
 
-# Initialize Logger
-LOGGER: logging.Logger = logging.getLogger(__name__)
+LOGGER: logging.Logger = setup_logger(__name__)
 
 
 def get_census_pop(data_urls: dict[str, str] = RAW_CENSUS_POP_DATA_URLS) -> None:

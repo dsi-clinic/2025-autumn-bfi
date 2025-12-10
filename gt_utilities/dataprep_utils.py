@@ -11,9 +11,10 @@ import geopandas as gpd
 import pandas as pd
 import requests
 
+from gt_utilities import setup_logger
 from gt_utilities.config import API_KEY, BASE_URL, GDP_FILE
 
-logger: logging.Logger = logging.getLogger(__name__)
+LOGGER: logging.Logger = setup_logger(__name__)
 
 
 def download_and_extract_shapefile(
@@ -38,14 +39,14 @@ def download_and_extract_shapefile(
     """
     extract_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info("Downloading and extracting shapefiles from: %s", url)
+    LOGGER.info("Downloading and extracting shapefiles from: %s", url)
 
     # --- Download the ZIP ---
     try:
         response: requests.Response = requests.get(url, timeout=timeout)
         response.raise_for_status()
     except requests.RequestException as exc:
-        logger.error("Failed to download file from %s: %s", url, exc, exc_info=True)
+        LOGGER.error("Failed to download file from %s: %s", url, exc, exc_info=True)
         raise exc
 
     # --- Extract ---
@@ -54,10 +55,10 @@ def download_and_extract_shapefile(
             z.extractall(extract_dir)
             z.close()
     except zipfile.BadZipFile as exc:
-        logger.error("Invalid ZIP file from %s", url)
+        LOGGER.error("Invalid ZIP file from %s", url)
         raise exc
 
-    logger.info("Extracted shapefiles to: %s", extract_dir.resolve())
+    LOGGER.info("Extracted shapefiles to: %s", extract_dir.resolve())
 
     return extract_dir
 
@@ -83,19 +84,19 @@ def convert_shapefiles_to_geojson(
     """
     for key, d in shp_dirs.items():
         if not d.exists():
-            logger.warning(f"Shapefile directory does not exist: {d!s}; skipping {key}")
+            LOGGER.warning(f"Shapefile directory does not exist: {d!s}; skipping {key}")
             continue
 
         shp_files: list[Path] = sorted(d.glob("*.shp"))
         if not shp_files:
-            logger.warning(f"No .shp found in {d!s}; skipping {key}")
+            LOGGER.warning(f"No .shp found in {d!s}; skipping {key}")
             continue
 
         shp_path: Path = shp_files[0]
         try:
             gdf: gpd.GeoDataFrame = gpd.read_file(shp_path)
         except Exception as exc:
-            logger.error(f"Failed to read shapefile {shp_path!s}: {exc}", exc_info=True)
+            LOGGER.error(f"Failed to read shapefile {shp_path!s}: {exc}", exc_info=True)
             continue
 
         if gdf.crs is None or gdf.crs.to_epsg() != epsg:
@@ -119,9 +120,9 @@ def convert_shapefiles_to_geojson(
         out: Path = out_paths[key]
         try:
             gdf.to_file(out, driver="GeoJSON")
-            logger.info(f"Wrote {len(gdf)} features to {out}")
+            LOGGER.info(f"Wrote {len(gdf)} features to {out}")
         except Exception as exc:
-            logger.error(f"Failed to write GeoJSON to {out!s}: {exc}", exc_info=True)
+            LOGGER.error(f"Failed to write GeoJSON to {out!s}: {exc}", exc_info=True)
             continue
 
 
@@ -158,12 +159,12 @@ def build_combined_geojson(
         Whether to keep the temporary clipped states file. Default is False.
     """
     # --- Load original GeoJSONs ---
-    logger.info("Filtering, Clipping, and Processing GeoJSON features...")
+    LOGGER.info("Filtering, Clipping, and Processing GeoJSON features...")
     try:
         gdf_msas: gpd.GeoDataFrame = gpd.read_file(msa_path)
         gdf_states: gpd.GeoDataFrame = gpd.read_file(states_path)
     except Exception as exc:
-        logger.error("Error reading input GeoJSONs: %s", exc, exc_info=True)
+        LOGGER.error("Error reading input GeoJSONs: %s", exc, exc_info=True)
         raise exc
 
     # Filtering MSAs to those present in df_long (Hardcoded according to original Census Bureau files)
@@ -171,18 +172,18 @@ def build_combined_geojson(
     gdf_msas_filtered: gpd.GeoDataFrame = gdf_msas[
         gdf_msas["CBSAFP"].astype(str).isin(msa_ids)
     ]
-    logger.info(f"Filtered to {len(gdf_msas_filtered)} MSAs with available data.")
+    LOGGER.info(f"Filtered to {len(gdf_msas_filtered)} MSAs with available data.")
 
     # --- Clip states by removing MSAs ---
     gdf_states_clipped: gpd.GeoDataFrame = gdf_states.overlay(
         gdf_msas_filtered, how="difference"
     )
-    logger.info(f"Clipped states: {len(gdf_states_clipped)} features remain.")
+    LOGGER.info(f"Clipped states: {len(gdf_states_clipped)} features remain.")
 
     # --- Save clipped states ---
     clipped_states_path: Path = data_dir / clipped_states_filename
     gdf_states_clipped.to_file(clipped_states_path, driver="GeoJSON")
-    logger.info(f"Wrote clipped states GeoJSON to {clipped_states_path}")
+    LOGGER.info(f"Wrote clipped states GeoJSON to {clipped_states_path}")
 
     # --- Reload MSAs and clipped states as raw GeoJSON ---
     msa_geo: dict[str, Any]
@@ -194,7 +195,7 @@ def build_combined_geojson(
         states_geo = json.load(f)
 
     # --- Normalize feature IDs ---
-    logger.info("Normalizing region_id fields...")
+    LOGGER.info("Normalizing region_id fields...")
     for feat in msa_geo["features"]:
         feat["properties"]["region_id"] = feat["properties"]["CBSAFP"]
 
@@ -206,7 +207,7 @@ def build_combined_geojson(
         "type": "FeatureCollection",
         "features": msa_geo["features"] + states_geo["features"],
     }
-    logger.info("Combined MSAs + States into a unified FeatureCollection.")
+    LOGGER.info("Combined MSAs + States into a unified FeatureCollection.")
 
     # --- Write combined GeoJSON ---
     combined_path: Path = data_dir / combined_filename
@@ -216,7 +217,7 @@ def build_combined_geojson(
     if not clipped_states_keep:
         clipped_states_path.unlink()  # remove temporary clipped states file
 
-    logger.info(
+    LOGGER.info(
         f"Wrote {len(gdf_states_clipped) + len(gdf_msas_filtered)} "
         f"features to {combined_path}"
     )
@@ -252,7 +253,7 @@ def download_bea_gdp_percent_change(
         "ResultFormat": "json",
     }
 
-    logger.info(f"Requesting BEA GDP data ({start_year} - {end_year})...")
+    LOGGER.info(f"Requesting BEA GDP data ({start_year} - {end_year})...")
 
     try:
         response: requests.Response = requests.get(BASE_URL, params=params, timeout=60)
@@ -260,7 +261,7 @@ def download_bea_gdp_percent_change(
         data: dict[str, Any] = response.json()
 
     except Exception as exc:
-        logger.error("Error fetching BEA GDP data: %s", exc, exc_info=True)
+        LOGGER.error("Error fetching BEA GDP data: %s", exc, exc_info=True)
         return None
 
     # --- Validate response ----------------------------------------------------
@@ -268,11 +269,11 @@ def download_bea_gdp_percent_change(
         results: dict[str, Any] = data["BEAAPI"]["Results"]
         rows: list[dict[str, Any]] = results.get("Data", [])
     except Exception:
-        logger.error("Unexpected BEA API response format.")
+        LOGGER.error("Unexpected BEA API response format.")
         return None
 
     if not rows:
-        logger.warning("No data returned from BEA API.")
+        LOGGER.warning("No data returned from BEA API.")
         return None
 
     # --- Convert to DataFrame -------------------------------------------------
@@ -305,9 +306,9 @@ def download_bea_gdp_percent_change(
     try:
         output_file.parent.mkdir(parents=True, exist_ok=True)
         pivot_df.to_csv(output_file, index=False)
-        logger.info("GDP data saved to: %s", output_file.resolve())
+        LOGGER.info("GDP data saved to: %s", output_file.resolve())
     except Exception as exc:
-        logger.error("Failed to write GDP output file: %s", exc, exc_info=True)
+        LOGGER.error("Failed to write GDP output file: %s", exc, exc_info=True)
         return None
 
     return pivot_df
@@ -319,14 +320,14 @@ def merge_healthcare_with_gdp(
     output_path: Path,
 ) -> pd.DataFrame | None:
     """Merge BEA GDP percent-change with healthcare employment dataset."""
-    logger.info("Merging healthcare dataset with GDP dataset...")
+    LOGGER.info("Merging healthcare dataset with GDP dataset...")
 
     if not healthcare_path.exists():
-        logger.error("Healthcare dataset not found: %s", healthcare_path)
+        LOGGER.error("Healthcare dataset not found: %s", healthcare_path)
         return None
 
     if not gdp_path.exists():
-        logger.error("GDP dataset not found: %s", gdp_path)
+        LOGGER.error("GDP dataset not found: %s", gdp_path)
         return None
 
     try:
@@ -370,8 +371,8 @@ def merge_healthcare_with_gdp(
         output_path.parent.mkdir(parents=True, exist_ok=True)
         merged.to_csv(output_path, index=False)
 
-        logger.info("Merged dataset saved at: %s", output_path.resolve())
-        logger.info(
+        LOGGER.info("Merged dataset saved at: %s", output_path.resolve())
+        LOGGER.info(
             "Rows: %d | Columns: %d successfully merged.",
             len(merged),
             len(merged.columns),
@@ -380,5 +381,5 @@ def merge_healthcare_with_gdp(
         return merged
 
     except Exception as exc:
-        logger.error("Error merging healthcare + GDP datasets: %s", exc, exc_info=True)
+        LOGGER.error("Error merging healthcare + GDP datasets: %s", exc, exc_info=True)
         return None

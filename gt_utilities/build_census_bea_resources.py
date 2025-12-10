@@ -11,13 +11,15 @@ from pathlib import Path
 
 import pandas as pd
 
+from gt_utilities import setup_logger
+
 DATA_DIR: Path = Path(os.environ.get("DATA_DIR", "data")).resolve()
 RAW_DATA_DIR: Path = DATA_DIR / "raw_data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Initialize Logger
-LOGGER: logging.Logger = logging.getLogger(__name__)
+LOGGER: logging.Logger = setup_logger(__name__)
 
 
 def make_msa_tables(final_pop_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
