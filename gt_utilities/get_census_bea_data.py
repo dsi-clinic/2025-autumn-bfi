@@ -1,7 +1,6 @@
 """Supplementary analysis using 1980 and 2022 population and labor data.
 
-This file first obtains raw data and saves them in /data/raw_data and then
-cleans and retrieves them, reformatting them into tables
+This file first obtains raw data and saves them in /data/raw_data.
 """
 
 import io

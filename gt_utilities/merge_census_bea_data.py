@@ -1,7 +1,8 @@
 """Supplementary analysis using 1980 and 2022 population and labor data.
 
-This file first obtains raw data and saves them in /data/raw_data and then
-cleans and retrieves them, reformatting them into tables
+This file first groups cleaned supplementary data by general MSA codes,
+filters them by MSAs in the BFI dataset, then merges 1980 population,
+2022 population, and aggregated labor data individually with BFI data.
 """
 
 import logging

@@ -4,7 +4,7 @@ This file combines the four separate modules:
 - get_census_bea_data.py
 - clean_census_bea_data.py
 - merge_census_bea_data.py
-- make_census_bea_resources.py
+- build_census_bea_resources.py
 to produce the final merged_bfi.csv and MSA tables.
 """
 

@@ -31,14 +31,8 @@ build-only:
 run-interactive: build-only
 	docker run -p 8501:8501 2025-autumn-bfi-app
 
-# run-interactive: build-only
-# 	docker compose run -it --rm $(mount_data) $(project_name) /bin/bash
-
 run-notebooks: build-only
 	docker compose run --rm -p 8888:8888 -t $(mount_data) $(project_name) uv run jupyter lab --port=8888 --ip='*' --NotebookApp.token='' --NotebookApp.password='' --no-browser --allow-root
-
-test-pipeline: build-only
-	docker compose run --rm $(mount_data) $(project_name) uv run python src/utils/pipeline_example.py
 
 clean:
 	docker compose down --rmi all --volumes --remove-orphans
