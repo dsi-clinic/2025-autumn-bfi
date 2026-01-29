@@ -1,3 +1,7 @@
+[tool.poetry]
+# Streamlit Community Cloud uses Poetry when it finds pyproject.toml (if uv.lock is not present).
+# Disable package mode so Poetry only installs dependencies and does not try to install this app as a package.
+package-mode = false
 
 [project]
 name = "2025-autumn-bfi"
