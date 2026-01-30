@@ -90,6 +90,60 @@ if not RAW_DATA_DIR.exists():
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def ensure_geojson() -> None:
+    """Ensure combined_US_regions_auto.geojson exists (Part 1 only).
+
+    Idempotent: does nothing if the file already exists. Used by the Streamlit app
+    on first load when deploying without a pre-run Dockerfile (e.g. Streamlit Cloud).
+    """
+    if COMBINED_GEOJSON.exists():
+        return
+    logger.info("GeoJSON missing; running Part 1 (GeoJSON shapefile preparation)...")
+    extract_path_cbsa = DATA_DIR / "cb_2021_us_cbsa_5m"
+    extract_path_state = DATA_DIR / "cb_2021_us_state_5m"
+
+    dp_utils.download_and_extract_shapefile(
+        url="https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_cbsa_5m.zip",
+        extract_dir=extract_path_cbsa,
+    )
+    dp_utils.download_and_extract_shapefile(
+        url="https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_state_5m.zip",
+        extract_dir=extract_path_state,
+    )
+    logger.info("Downloaded and extracted State shapefiles.")
+
+    datadf = pd.read_csv(DATA_PATHS)
+    indicator_cols = ["metro13", "metro_title"]
+    value_cols = [c for c in datadf.columns if c not in indicator_cols]
+    df_long = datadf.melt(
+        id_vars=indicator_cols,
+        value_vars=value_cols,
+        var_name="indicator",
+        value_name="value",
+    )
+
+    shp_dirs = {"cbsa": extract_path_cbsa, "states": extract_path_state}
+    msa_path = DATA_DIR / "2021_US_CBSA_auto.geojson"
+    states_path = DATA_DIR / "2021_US_States_auto.geojson"
+    out_paths = {"cbsa": msa_path, "states": states_path}
+    dp_utils.convert_shapefiles_to_geojson(shp_dirs, out_paths)
+
+    dp_utils.build_combined_geojson(
+        df_long=df_long,
+        msa_path=msa_path,
+        states_path=states_path,
+        data_dir=DATA_DIR,
+    )
+
+    for folder in [extract_path_cbsa, extract_path_state]:
+        if folder.exists() and folder.is_dir():
+            shutil.rmtree(folder)
+    for path in [msa_path, states_path]:
+        if path.exists() and path.is_file():
+            path.unlink()
+    logger.info("Part 1 (GeoJSON) complete: %s", COMBINED_GEOJSON.name)
+
+
 def run_preprocessing() -> None:
     """Runs the full data preprocessing pipeline in three parts."""
     console.rule("[bold blue]Data Preparation Package")
@@ -109,70 +163,12 @@ def run_preprocessing() -> None:
     # Part 1: GeoJSON Shapefile Preparation
     # ------------------------------------------------------
     console.rule("[bold green]Part 1: GeoJSON Shapefile Preparation")
-
     if COMBINED_GEOJSON.exists():
         logger.warning(
             f"GeoJSON already present at {COMBINED_GEOJSON.name}. Skipping Part 1."
         )
     else:
-        logger.info("Downloading shapefiles...")
-        extract_path_cbsa = DATA_DIR / "cb_2021_us_cbsa_5m"
-        extract_path_state = DATA_DIR / "cb_2021_us_state_5m"
-
-        dp_utils.download_and_extract_shapefile(
-            url="https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_cbsa_5m.zip",
-            extract_dir=extract_path_cbsa,
-        )
-        dp_utils.download_and_extract_shapefile(
-            url="https://www2.census.gov/geo/tiger/GENZ2021/shp/cb_2021_us_state_5m.zip",
-            extract_dir=extract_path_state,
-        )
-        logger.info("Downloaded and extracted State shapefiles.")
-
-        # Data preprocessing
-        logger.info("Reshaping BFI healthcare dataset to long format...")
-        datadf = pd.read_csv(DATA_PATHS)
-        indicator_cols = ["metro13", "metro_title"]
-        value_cols = [c for c in datadf.columns if c not in indicator_cols]
-        df_long = datadf.melt(
-            id_vars=indicator_cols,
-            value_vars=value_cols,
-            var_name="indicator",
-            value_name="value",
-        )
-
-        # Convert shapefiles
-        logger.info("Processing shapefiles to GeoJSON format...")
-        shp_dirs = {"cbsa": extract_path_cbsa, "states": extract_path_state}
-        msa_path = DATA_DIR / "2021_US_CBSA_auto.geojson"
-        states_path = DATA_DIR / "2021_US_States_auto.geojson"
-        out_paths = {"cbsa": msa_path, "states": states_path}
-
-        dp_utils.convert_shapefiles_to_geojson(shp_dirs, out_paths)
-
-        # Build Combined
-        dp_utils.build_combined_geojson(
-            msa_path=msa_path,
-            states_path=states_path,
-            df_long=df_long,
-            data_dir=DATA_DIR,
-        )
-
-        # Cleanup
-        logger.info("Cleaning up intermediate files...")
-        folders_to_delete = [extract_path_cbsa, extract_path_state]
-        files_to_delete = [msa_path, states_path]
-
-        for folder in folders_to_delete:
-            if folder.exists() and folder.is_dir():
-                shutil.rmtree(folder)
-                logger.info(f"Deleted folder: {folder.name}")
-
-        for file in files_to_delete:
-            if file.exists() and file.is_file():
-                file.unlink()
-                logger.info(f"Deleted file: {file.name}")
-
+        ensure_geojson()
         logger.info("[bold green]Part 1 Complete![/]", extra={"markup": True})
 
     time.sleep(1)
