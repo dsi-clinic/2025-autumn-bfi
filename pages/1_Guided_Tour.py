@@ -5,6 +5,7 @@ import logging
 import streamlit as st
 
 import gt_utilities.config as config
+from dataprep import ensure_merged_data
 from gt_utilities.charts import (
     make_colored_reg_chart,
     make_scatter_chart,
@@ -26,6 +27,12 @@ with col3:
 # Page Configuration
 # -------------------------
 st.set_page_config(**config.PAGE_CONFIG)
+
+# -------------------------
+# Ensure merged/GDP data exist (e.g. on Streamlit Cloud)
+# -------------------------
+if not config.MERGED_PATHS.exists() or not config.GDP_PATHS.exists():
+    ensure_merged_data()
 
 # -------------------------
 # Load All Datasets

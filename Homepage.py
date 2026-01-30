@@ -2,13 +2,15 @@
 
 import streamlit as st
 
-from dataprep import ensure_geojson
+from dataprep import ensure_geojson, ensure_merged_data
 from gt_utilities import config
 
-# On Streamlit Cloud (and any deploy without a pre-run Dockerfile), the GeoJSON
-# is built by dataprep.py. Ensure it exists before users can open the map page.
+# On Streamlit Cloud (and any deploy without a pre-run Dockerfile), dataprep
+# outputs are built on first run. Ensure they exist before users open other pages.
 if not config.COMBINED_GEOJSON.exists():
     ensure_geojson()
+if not config.MERGED_PATHS.exists() or not config.GDP_PATHS.exists():
+    ensure_merged_data()
 
 st.set_page_config(
     page_title="Welcome",
