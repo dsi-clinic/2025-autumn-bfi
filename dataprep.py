@@ -144,6 +144,31 @@ def ensure_geojson() -> None:
     logger.info("Part 1 (GeoJSON) complete: %s", COMBINED_GEOJSON.name)
 
 
+def ensure_merged_data() -> None:
+    """Ensure Part 2 and Part 3 outputs exist (GDP merge + merged BFI).
+
+    Idempotent: skips each part if its outputs already exist. Used by the Streamlit
+    app when deploying without a pre-run Dockerfile (e.g. Streamlit Cloud).
+    """
+    # Part 2: merged_healthcare_jobs_with_gdp.csv (+ msa_gdp_percent_change.csv)
+    if not (GDP_FILE.exists() and MERGED_FILE.exists()):
+        logger.info("Part 2 outputs missing; running MSA Healthcare + GDP pipeline...")
+        gdp_df = dp_utils.download_bea_gdp_percent_change()
+        if gdp_df is not None:
+            dp_utils.merge_healthcare_with_gdp(DATA_PATHS, GDP_FILE, MERGED_FILE)
+            logger.info("Part 2 complete: %s", MERGED_FILE.name)
+        else:
+            logger.error("Part 2 failed: GDP data download failed.")
+
+    # Part 3: merged_bfi.csv
+    if not MERGED_BFI.exists():
+        logger.info("Part 3 output missing; running BFI pipeline...")
+        pipeline.run_full_pipeline()
+        if RAW_DATA_DIR.exists() and RAW_DATA_DIR.is_dir():
+            shutil.rmtree(RAW_DATA_DIR)
+        logger.info("Part 3 complete: %s", MERGED_BFI.name)
+
+
 def run_preprocessing() -> None:
     """Runs the full data preprocessing pipeline in three parts."""
     console.rule("[bold blue]Data Preparation Package")
