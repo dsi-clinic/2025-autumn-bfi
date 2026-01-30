@@ -4,9 +4,14 @@ import pandas as pd
 import streamlit as st
 
 import gt_utilities.map_visualization_helper as map_utils
+from dataprep import ensure_geojson
 from gt_utilities import config
 from gt_utilities.demographics import render_demographics_comparison
 from gt_utilities.loaders import load_all_datasets
+
+# Ensure GeoJSON exists (e.g. on Streamlit Cloud when dataprep was not run beforehand).
+if not config.COMBINED_GEOJSON.exists():
+    ensure_geojson()
 
 # --- Load data ---
 DATA_DIR = config.DATA_DIR

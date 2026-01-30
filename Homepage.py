@@ -2,6 +2,14 @@
 
 import streamlit as st
 
+from dataprep import ensure_geojson
+from gt_utilities import config
+
+# On Streamlit Cloud (and any deploy without a pre-run Dockerfile), the GeoJSON
+# is built by dataprep.py. Ensure it exists before users can open the map page.
+if not config.COMBINED_GEOJSON.exists():
+    ensure_geojson()
+
 st.set_page_config(
     page_title="Welcome",
     page_icon="📈",
@@ -18,7 +26,7 @@ with col3:
         st.switch_page("pages/2_Freeroam.py")
 
 st.write(
-    "<h1><em>The Rise of Healthcare " "Jobs</em> Data Visualization Dashboard",
+    "<h1><em>The Rise of Healthcare Jobs</em> Data Visualization Dashboard",
     unsafe_allow_html=True,
 )
 
